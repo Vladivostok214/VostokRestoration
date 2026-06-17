@@ -8,100 +8,17 @@ use std::path::Path;
 use serde::{Serialize, Deserialize};
 use realfft::RealFftPlanner; // ✨ CORRECCIÓN: Eliminado import de Complex no utilizado
 use rayon::prelude::*;
-use symphonia::core::audio::{AudioBufferRef, Signal};
-use symphonia::core::codecs::{DecoderOptions, CODEC_TYPE_NULL};
-use symphonia::core::errors::Error as SymphoniaError;
-use symphonia::core::formats::FormatOptions;
-use symphonia::core::io::MediaSourceStream;
-use symphonia::core::meta::MetadataOptions;
-use symphonia::core::probe::Hint;
 
 pub use crate::vostok_dsp::types::*;
 pub use crate::vostok_dsp::utils::*;
+pub use crate::vostok_dsp::io::*;
 
-/// Estructura contenedora de un canal de audio decodificado
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AudioBuffer {
-    /// Muestras del canal en formato Float32 normalizado [-1.0, 1.0]
-    pub samples: Vec<f32>,
-    /// Frecuencia de muestreo (ej: 44100, 48000 Hz)
-    pub sample_rate: u32,
-    /// Cantidad de canales decodificados en el stream
-    pub channels: u16,
-    /// Profundidad de bits original (ej: 16, 24, 32 bits)
-    pub bit_depth: u16,
-    /// Duración total del audio en segundos
-    pub duration_seconds: f64,
-}
 
-/// Representa la matriz bidimensional resultante del análisis espectral
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct StftResult {
-    /// Matriz linealizada contigua (row-major: num_frames x num_bins) de amplitudes
-    pub matrix: Vec<f32>,
-    /// Cantidad de bloques de tiempo calculados
-    pub num_frames: usize,
-    /// Cantidad de bins de frecuencia por frame (fft_size / 2)
-    pub num_bins: usize,
-}
 
-/// Configuración de ventana de visualización (Viewport)
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ViewportConfig {
-    /// Índice de frame de inicio de la visualización
-    pub start_frame: usize,
-    /// Índice de frame de fin de la visualización
-    pub end_frame: usize,
-    /// Ancho máximo de textura permitido por la GPU (ej: 4096 o 8192)
-    pub max_texture_width: usize,
-}
 
-/// Clasificación de tipos de glitches digitales
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
-pub enum GlitchType {
-    Click,
-    Pop,
-    Dropout,
-    Hum,
-    Hiss,
-    Slip,
-    Distortion,
-}
 
-/// Modo de audio para adaptar los umbrales de detección
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
-pub enum AudioMode {
-    Music,
-    Voice,
-}
 
-/// Parámetros de escaneo enviados desde el frontend
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ScanParams {
-    pub clicks: bool,
-    pub hum: bool,
-    pub hiss: bool,
-    pub dropouts: bool,
-    pub distortion: bool,
-    pub sensitivity: f32,
-    pub audio_mode: Option<AudioMode>,
-}
 
-/// Batería de características extraídas por cada frame de audio para análisis de dominios
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FrameFeatures {
-    pub rms: f32,
-    pub zero_crossing_rate: f32,
-    pub crest_factor: f32,
-    pub z_score: f32,
-    pub spectral_centroid: f32,
-    pub spectral_flux: f32,
-    pub spectral_flatness: f32,
-    pub frame_index: usize,
-    pub time_secs: f32,
-}
 
 /// Extrae características multidimensionales de todos los frames alineados con la STFT
 pub fn extract_features(
@@ -1306,159 +1223,6 @@ pub fn ejecutar_analisis_dsp(
     }
 }
 
-/// Representación de un evento de glitch detectado en el audio
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GlitchEvent {
-    /// Índice del sample de inicio del glitch en el vector de audio
-    pub sample_index: usize,
-    /// Ubicación temporal exacta del glitch en segundos
-    pub time_secs: f64,
-    /// Magnitud del salto de voltaje (diferencia de amplitud)
-    pub amplitude_delta: f32,
-    /// Dirección del gradiente (+1 para salto positivo, -1 para negativo)
-    pub direction: i8,
-    /// Categoría del glitch identificado
-    pub event_type: GlitchType,
-    /// Estado de la reparación
-    pub repaired: bool,
-    /// Frecuencia física asociada al glitch en Hz
-    pub frequency: Option<f32>,
-    /// Canal donde se detectó el glitch (0 para L, 1 para R, etc.)
-    #[serde(default)]
-    pub channel: u16,
-    /// Duración aproximada del evento en muestras (opcional)
-    #[serde(default)]
-    pub duration_samples: Option<usize>,
-}
-
-/// Parámetros de la interpolación Hermite cúbica para la reparación de glitches
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct HermiteConfig {
-    /// Tamaño de la ventana de contexto en muestras (4–64)
-    pub window_size: usize,
-    /// Bias de la spline (reservado para uso futuro)
-    pub bias: f32,
-    /// Tensión de la spline (-1.0 a 1.0)
-    pub tension: f32,
-}
-
-impl Default for HermiteConfig {
-    fn default() -> Self {
-        HermiteConfig { window_size: 16, bias: 0.0, tension: 0.0 }
-    }
-}
-
-/// Decodifica un archivo de audio WAV, MP3 o FLAC a Float32 nativo usando `symphonia`
-pub fn decode_audio_file<P: AsRef<Path>>(path: P) -> Result<AudioBuffer, String> {
-    let file = std::fs::File::open(path).map_err(|e| e.to_string())?;
-    
-    let mss = MediaSourceStream::new(Box::new(file), Default::default());
-    let hint = Hint::new();
-    
-    let probed = symphonia::default::get_probe()
-        .format(&hint, mss, &FormatOptions::default(), &MetadataOptions::default())
-        .map_err(|e| format!("Error de contenedor: {}", e))?;
-        
-    let mut format = probed.format;
-    
-    let track = format
-        .tracks()
-        .iter()
-        .find(|t| t.codec_params.codec != CODEC_TYPE_NULL)
-        .ok_or_else(|| "No se encontró ningún track de audio.".to_string())?;
-        
-    let mut decoder = symphonia::default::get_codecs()
-        .make(&track.codec_params, &DecoderOptions::default())
-        .map_err(|e| format!("Error de decodificador: {}", e))?;
-        
-    let track_id = track.id;
-    let sample_rate = track.codec_params.sample_rate.unwrap_or(48000);
-    let channels = track.codec_params.channels.map(|c| c.count() as u16).unwrap_or(1);
-    let bit_depth = track.codec_params.bits_per_sample.unwrap_or(16) as u16;
-    
-    let mut samples = Vec::new();
-    
-    loop {
-        let packet = match format.next_packet() {
-            Ok(packet) => packet,
-            Err(SymphoniaError::IoError(ref err)) if err.kind() == std::io::ErrorKind::UnexpectedEof => {
-                break;
-            }
-            Err(err) => return Err(format!("Error leyendo paquete: {}", err)),
-        };
-        
-        if packet.track_id() != track_id {
-            continue;
-        }
-        
-        let decoded = decoder.decode(&packet).map_err(|e| format!("Error decodificando: {}", e))?;
-        
-        match decoded {
-            AudioBufferRef::F32(buf) => {
-                if buf.frames() > 0 {
-                    let num_chans = channels as usize;
-                    samples.reserve(buf.frames() * num_chans);
-                    for i in 0..buf.frames() {
-                        for c in 0..num_chans {
-                            samples.push(buf.chan(c)[i]);
-                        }
-                    }
-                }
-            }
-            AudioBufferRef::S16(buf) => {
-                if buf.frames() > 0 {
-                    let scale = 1.0 / 32768.0;
-                    let num_chans = channels as usize;
-                    samples.reserve(buf.frames() * num_chans);
-                    for i in 0..buf.frames() {
-                        for c in 0..num_chans {
-                            samples.push(buf.chan(c)[i] as f32 * scale);
-                        }
-                    }
-                }
-            }
-            AudioBufferRef::S32(buf) => {
-                if buf.frames() > 0 {
-                    let scale = 1.0 / 2147483648.0;
-                    let num_chans = channels as usize;
-                    samples.reserve(buf.frames() * num_chans);
-                    for i in 0..buf.frames() {
-                        for c in 0..num_chans {
-                            samples.push(buf.chan(c)[i] as f32 * scale);
-                        }
-                    }
-                }
-            }
-            AudioBufferRef::S24(buf) => {
-                if buf.frames() > 0 {
-                    let scale = 1.0 / 8388608.0;
-                    let num_chans = channels as usize;
-                    samples.reserve(buf.frames() * num_chans);
-                    for i in 0..buf.frames() {
-                        for c in 0..num_chans {
-                            samples.push(buf.chan(c)[i].inner() as f32 * scale);
-                        }
-                    }
-                }
-            }
-            _ => {
-                return Err("Formato de buffer no soportado directamente.".to_string());
-            }
-        }
-    }
-    
-    let total_samples = samples.len();
-    let duration_seconds = (total_samples / channels as usize) as f64 / sample_rate as f64;
-    
-    Ok(AudioBuffer {
-        samples,
-        sample_rate,
-        channels,
-        bit_depth,
-        duration_seconds,
-    })
-}
-
 fn build_window(fft_size: usize, window_type: &str) -> Vec<f32> {
     let mut window = vec![0.0f32; fft_size];
     let pi2 = 2.0 * std::f32::consts::PI;
@@ -1567,24 +1331,6 @@ pub fn compute_stft_multichannel(
             num_bins: channel_stfts[0].num_bins,
         })
     }
-}
-
-/// Serializa un `StftResult` a bytes compactos para transferencia IPC.
-/// Formato: [frames: u32 LE][bins: u32 LE][audio_version: u64 LE][matrix: u8 × frames×bins]
-pub fn stft_to_binary(stft: &StftResult, audio_version: u64) -> Vec<u8> {
-    let payload = stft.num_frames * stft.num_bins;
-    let mut buf = Vec::with_capacity(8 + 8 + payload);
-    buf.extend_from_slice(&(stft.num_frames as u32).to_le_bytes());
-    buf.extend_from_slice(&(stft.num_bins   as u32).to_le_bytes());
-    buf.extend_from_slice(&audio_version.to_le_bytes());
-    let noise_floor_db = -96.0;
-    
-    for &mag in &stft.matrix {
-        let db = 20.0 * mag.max(1e-6).log10();
-        let normalized = (db - noise_floor_db) / -noise_floor_db;
-        buf.push((normalized.clamp(0.0, 1.0) * 255.0) as u8);
-    }
-    buf
 }
 
 /// Resuelve un sistema lineal de ecuaciones M * X = B usando la eliminación de Gauss con pivoteo parcial.
@@ -1750,15 +1496,6 @@ pub fn heal_single_glitch_hermite(
     }
 }
 
-/// Representa el cambio de estado de un fragmento de audio modificado (para deshacer/rehacer)
-#[derive(Debug, Clone)]
-pub struct AudioHistoryState {
-    pub channel: u16,
-    pub glitch_sample_index: usize,
-    pub start_sample: usize,
-    pub old_samples: Vec<f32>,
-    pub new_samples: Vec<f32>,
-}
 
 /// Reparación especializada para Clicks usando interpolación cúbica Hermite temporal rápida
 fn heal_click_hermite(
@@ -2320,56 +2057,6 @@ pub fn get_paged_spectrogram(
     }
 }
 
-pub fn export_repaired_wav<P: AsRef<Path>>(
-    path: P,
-    samples: &[f32],
-    sample_rate: u32,
-    channels: u16,
-    bit_depth: u16,
-) -> Result<(), String> {
-    let spec = hound::WavSpec {
-        channels,
-        sample_rate,
-        bits_per_sample: bit_depth,
-        sample_format: if bit_depth == 32 {
-            hound::SampleFormat::Float
-        } else {
-            hound::SampleFormat::Int
-        },
-    };
-
-    let mut writer = hound::WavWriter::create(path, spec)
-        .map_err(|e| format!("No se pudo crear el archivo WAV: {}", e))?;
-
-    match bit_depth {
-        16 => {
-            for &s in samples {
-                let i16_val = (s.clamp(-1.0, 1.0) * 32767.0) as i16;
-                writer.write_sample(i16_val).map_err(|e| e.to_string())?;
-            }
-        }
-        24 => {
-            for &s in samples {
-                let i32_val = (s.clamp(-1.0, 1.0) * 8388607.0) as i32;
-                writer.write_sample(i32_val).map_err(|e| e.to_string())?;
-            }
-        }
-        32 => {
-            for &s in samples {
-                writer.write_sample(s.clamp(-1.0, 1.0)).map_err(|e| e.to_string())?;
-            }
-        }
-        _ => { // Fallback to 16-bit
-            for &s in samples {
-                let i16_val = (s.clamp(-1.0, 1.0) * 32767.0) as i16;
-                writer.write_sample(i16_val).map_err(|e| e.to_string())?;
-            }
-        }
-    }
-
-    writer.finalize().map_err(|e| format!("Error finalizando el archivo WAV: {}", e))?;
-    Ok(())
-}
 
 pub fn update_stft_range_multichannel(
     stft: &mut StftResult,
