@@ -1,0 +1,40 @@
+# =========================
+# Node / Vite
+# =========================
+node_modules/
+dist/
+
+# =========================
+# Rust / Tauri
+# =========================
+src-tauri/target*/
+src-tauri/*.log
+*.log
+
+# Tauri generated schemas
+src-tauri/gen/schemas/
+
+# =========================
+# Audio datasets
+# =========================
+TestSamples/
+
+# =========================
+# Editor
+# =========================
+.vscode/
+.idea/
+
+# =========================
+# OS files
+# =========================
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# =========================
+# Temporary files
+# =========================
+*.tmp
+*.bak
+*.cache

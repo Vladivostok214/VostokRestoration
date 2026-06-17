@@ -1,0 +1,17 @@
+{
+  "artifact": "CLICK",
+  "baseline_metrics": {
+    "precision": 0.0,
+    "recall": 0.0,
+    "f1_score": 0.0,
+    "false_positives": 0,
+    "false_negatives": 20
+  },
+  "hypothesis": "El umbral actual de Crest Factor > 15.0 es extremadamente restrictivo y asume un ruido de fondo (RMS) cercano a cero absoluto. Transitorios en audio normal rara vez superan un Crest Factor de 4.0 a 6.0 sin causar falsos positivos masivos.",
+  "recommended_thresholds": {
+    "crest_factor": 4.5,
+    "spectral_bandwidth_ratio": 0.7,
+    "rms_noise_floor_multiplier": 1.5
+  },
+  "action_required": "Reducir los umbrales en dsp.rs e iterar con un grid search para optimizar el F1 Score."
+}

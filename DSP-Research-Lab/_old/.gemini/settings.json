@@ -1,0 +1,13 @@
+{
+  "skills": {
+    "disabled": [
+      "skill-creator",
+      "vst-engineering-expert",
+      "sovereign-tech-auditor",
+      "reascript-expert",
+      "jsfx-expert",
+      "hyperframes-cli",
+      "find-skills"
+    ]
+  }
+}

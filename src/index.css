@@ -1,0 +1,423 @@
+/* ===================================================================
+   VOSTOK RESTORATION v1 — Design System Noir-Tech
+   Heredado y extendido desde Vostok Labs
+   =================================================================== */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=JetBrains+Mono:wght@400;700;900&display=swap');
+
+/* --- CSS TOKENS --- */
+:root {
+  --vostok-green:     #39FF14;
+  --vostok-cyan:      #00FFFF;
+  --vostok-black:     #010101;
+  --vostok-surface:   rgba(255, 255, 255, 0.03);
+  --vostok-border:    rgba(255, 255, 255, 0.08);
+  --vostok-border-g:  rgba(57, 255, 20, 0.25);
+  --vostok-border-c:  rgba(0, 255, 255, 0.25);
+  --grid-color:       rgba(57, 255, 20, 0.06);
+  --grid-size:        40px;
+  --font-ui:          'Inter', system-ui, sans-serif;
+  --font-mono:        'JetBrains Mono', monospace;
+  --radius-sm:        8px;
+  --radius-md:        16px;
+  --radius-lg:        24px;
+  --radius-xl:        32px;
+  --blur-glass:       blur(20px) saturate(180%);
+  --shadow-glow-g:    0 0 30px rgba(57, 255, 20, 0.15);
+  --shadow-glow-c:    0 0 30px rgba(0, 255, 255, 0.15);
+  --shadow-panel:     0 8px 40px rgba(0, 0, 0, 0.6);
+  --safe-top:         env(safe-area-inset-top);
+  --safe-bottom:      env(safe-area-inset-bottom);
+}
+
+/* --- RESET & BASE --- */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+*::-webkit-scrollbar { display: none; }
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--vostok-black);
+  color: #fff;
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* --- MILLIMETRIC GRID BACKGROUND --- */
+.grid-bg {
+  background-image:
+    linear-gradient(var(--grid-color) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+  background-size: var(--grid-size) var(--grid-size);
+}
+
+/* --- CRT SCANLINES (33% opacity) --- */
+.crt-scanlines::before {
+  content: '';
+  display: block;
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 2px,
+    rgba(0, 0, 0, 0.33) 2px,
+    rgba(0, 0, 0, 0.33) 4px
+  );
+  z-index: 9999;
+  pointer-events: none;
+  animation: scanroll 8s linear infinite;
+  opacity: 0.4;
+}
+
+@keyframes scanroll {
+  from { background-position: 0 0; }
+  to   { background-position: 0 40px; }
+}
+
+/* --- GLASSMORPHISM PANEL --- */
+.glass-panel {
+  background: rgba(5, 5, 5, 0.7);
+  border: 1px solid var(--vostok-border);
+  backdrop-filter: var(--blur-glass);
+  -webkit-backdrop-filter: var(--blur-glass);
+  box-shadow: var(--shadow-panel);
+}
+
+.glass-panel--green {
+  border-color: var(--vostok-border-g);
+  box-shadow: var(--shadow-glow-g), var(--shadow-panel);
+}
+
+.glass-panel--cyan {
+  border-color: var(--vostok-border-c);
+  box-shadow: var(--shadow-glow-c), var(--shadow-panel);
+}
+
+/* --- TYPOGRAPHY --- */
+.font-mono  { font-family: var(--font-mono); }
+.font-ui    { font-family: var(--font-ui); }
+
+.label-xs {
+  font-size: 7px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.25em;
+  color: rgba(255, 255, 255, 0.35);
+}
+.label-sm {
+  font-size: 9px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* --- BUTTONS --- */
+.btn-icon {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--vostok-surface);
+  border: 1px solid var(--vostok-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+  color: rgba(255,255,255,0.6);
+}
+.btn-icon:hover  { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.18); }
+.btn-icon:active { transform: scale(0.94); }
+
+.btn-icon--green {
+  border-color: var(--vostok-border-g);
+  background: rgba(57, 255, 20, 0.08);
+  color: var(--vostok-green);
+  box-shadow: var(--shadow-glow-g);
+}
+.btn-icon--green:hover { background: rgba(57, 255, 20, 0.14); }
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: rgba(57, 255, 20, 0.1);
+  border: 1px solid var(--vostok-border-g);
+  border-radius: var(--radius-md);
+  color: var(--vostok-green);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.15s;
+  box-shadow: var(--shadow-glow-g);
+}
+.btn-primary:hover  { background: rgba(57, 255, 20, 0.18); }
+.btn-primary:active { transform: scale(0.96); }
+
+/* --- GLOW INDICATORS --- */
+.dot-pulse-green {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--vostok-green);
+  box-shadow: 0 0 8px var(--vostok-green), 0 0 16px rgba(57,255,20,0.4);
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+.dot-pulse-cyan {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--vostok-cyan);
+  box-shadow: 0 0 8px var(--vostok-cyan), 0 0 16px rgba(0,255,255,0.4);
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+/* --- GLITCH MARKER --- */
+.glitch-marker {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: rgba(255, 60, 60, 0.8);
+  box-shadow: 0 0 8px rgba(255, 60, 60, 0.6), 0 0 20px rgba(255, 60, 60, 0.2);
+  pointer-events: none;
+}
+
+/* --- DROP ZONE --- */
+.drop-zone {
+  border: 2px dashed var(--vostok-border);
+  border-radius: var(--radius-xl);
+  transition: border-color 0.2s, background 0.2s;
+}
+.drop-zone.active {
+  border-color: var(--vostok-green);
+  background: rgba(57, 255, 20, 0.04);
+  box-shadow: var(--shadow-glow-g);
+}
+
+/* --- TELEMETRY VALUE --- */
+.telem-value {
+  font-family: var(--font-mono);
+  font-weight: 900;
+  font-size: clamp(1.2rem, 2vw, 2rem);
+  line-height: 1;
+  color: #fff;
+}
+.telem-unit {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--vostok-green);
+  margin-left: 3px;
+}
+
+/* --- PROGRESS BAR --- */
+.progress-bar {
+  width: 100%;
+  height: 3px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.progress-bar__fill {
+  height: 100%;
+  background: linear-gradient(90deg, #00FFFF, var(--vostok-green));
+  border-radius: 99px;
+  box-shadow: 0 0 8px rgba(57,255,20,0.5);
+  transition: width 0.1s linear;
+}
+
+/* --- ANIMATIONS --- */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in { animation: fade-in 0.35s ease forwards; }
+
+@keyframes shimmer {
+  from { background-position: -200% center; }
+  to   { background-position: 200% center; }
+}
+
+/* --- SCROLLABLE AREAS (explicit override) --- */
+.scrollable {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(57,255,20,0.2) transparent;
+  overflow-y: auto;
+}
+
+/* --- RESPONSIVE BOTTOM BUTTONS & CONTROLS --- */
+.transport-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.buttons-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.buttons-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.telemetry-row {
+  display: flex;
+  gap: 16px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+@media (max-width: 1100px) {
+  .transport-container {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  
+  .buttons-row {
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .telemetry-row {
+    justify-content: space-between;
+    width: 100%;
+    margin-top: 4px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+  }
+}
+
+@media (max-width: 900px) {
+  .hidden-mobile-divider {
+    display: none !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .buttons-row {
+    justify-content: center;
+    gap: 10px;
+  }
+
+  .buttons-group {
+    justify-content: center;
+  }
+}
+
+/* ===================================================================
+   LOADING STATE — Indeterminate Progress Scanner (Opción B)
+   =================================================================== */
+
+/* Contenedor de la barra indeterminada */
+.progress-scan {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Franja luminosa que viaja de izquierda a derecha infinitamente */
+.progress-scan::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -35%;
+  width: 35%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(0, 245, 255, 0.7) 35%,
+    #39FF14 55%,
+    transparent 100%
+  );
+  box-shadow: 0 0 10px rgba(57, 255, 20, 0.5);
+  border-radius: 2px;
+  animation: scan-progress 1.6s ease-in-out infinite;
+}
+
+@keyframes scan-progress {
+  0%   { left: -35%; }
+  100% { left: 105%; }
+}
+
+/* ── CPU icon: rotación lenta continua para señalar procesamiento activo ── */
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* ===================================================================
+   SPECTRAL HORIZON — Barras decorativas generativas (Opción C)
+   =================================================================== */
+
+/* Cada barra respira con scaleY + opacidad — GPU composited, zero CPU ── */
+@keyframes spec-bar-pulse {
+  0%, 100% {
+    opacity: 0.45;
+    transform: scaleY(1);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scaleY(1.12);
+  }
+}
+
+/* ==========================================================================
+   GHOST MARKERS (VOSTOK SPECTROGRAM)
+   ========================================================================== */
+.glitch-group .glitch-beam {
+  opacity: 0;
+  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glitch-group:hover .glitch-beam,
+.glitch-group.selected .glitch-beam {
+  opacity: 0.6;
+}
+
+.glitch-group .glitch-icon {
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), fill 0.2s;
+  transform-origin: center;
+}
+
+.glitch-group:hover .glitch-icon,
+.glitch-group.selected .glitch-icon {
+  transform: scale(1.6);
+  filter: drop-shadow(0px 0px 4px currentColor);
+}
