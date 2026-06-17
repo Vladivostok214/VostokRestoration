@@ -1,0 +1,175 @@
+• Plan P0: Locks Cortos En Tauri
+
+  Objetivo: evitar que `audio_lock` y `stft_lock` permanezcan tomados durante DSP pesado, serialización binaria o
+  generación de envolvente. La regla mínima es: tomar lock, copiar o mover solo lo necesario, soltar lock, computar,
+  volver a tomar lock solo para consolidar estado.
+
+  1. Clasificar Comandos Por Riesgo
+
+  Prioridad de intervención:
+
+  1. `ejecutar_analisis_avanzado`
+      - Hoy mantiene `audio_lock` + `stft_lock` durante todo `ejecutar_analisis_dsp`.
+      - Es el primer candidato porque el análisis puede ser caro y bloquea playback, export, STFT dinámica y reparación.
+
+  2. `obtener_espectrograma_dinamico`
+      - Hoy mantenía `audio_lock` mientras calculaba STFT local.
+      - Impacta UI cuando se dispara `Enfoque HD`.
+
+  3. `reparar_glitches_seleccionados`, `deshacer_accion`, `rehacer_accion`
+      - Más delicados porque mutan audio/STFT/undo.
+      - Requieren separación entre fase de mutación y fase de generación de respuesta.
+
+  2. Cambio Mínimo Para `ejecutar_analisis_avanzado`
+
+  Implementar snapshot local:
+
+  ```rust
+  let audio_snapshot = {
+      let audio_lock = app.audio.lock().unwrap();
+      audio_lock.as_ref().cloned()
+  };
+
+  let stft_snapshot = {
+      let stft_lock = app.stft.lock().unwrap();
+      stft_lock.as_ref().cloned()
+  };
+  ```
+
+  Luego ejecutar:
+
+  ```rust
+  let mut glitches = dsp::ejecutar_analisis_dsp(&audio_buf, &stft_res, &params);
+  ```
+
+  fuera de locks.
+
+  Estado: IMPLEMENTADO CORRECTAMENTE en `src-tauri/src/lib.rs`.
+  - `audio` y `stft` se capturan como snapshots clonados.
+  - Los locks se liberan antes de llamar a `ejecutar_analisis_dsp`.
+  - El filtrado por `loop_start` / `loop_end` se mantiene intacto.
+
+  Riesgo:
+
+  - Clona `AudioBuffer` y `StftResult`; reduce bloqueo pero aumenta memoria temporal.
+  - Para archivos largos, puede duplicar memoria de forma notable.
+  - Es mínimo y seguro funcionalmente, pero no óptimo.
+
+  Mejor siguiente paso, no necesariamente en el primer cambio:
+
+  - Migrar `AppState.audio` y `AppState.stft` a `Arc<AudioBuffer>` / `Arc<StftResult>` para snapshot barato sin clonar
+    matrices grandes.
+
+  3. Cambio Mínimo Para `obtener_espectrograma_dinamico`
+
+  Tomar snapshot solo de metadatos y del slice necesario:
+
+  ```rust
+  let (slice, channels, sample_rate, fallback_stft) = {
+      let audio_lock = app.audio.lock().unwrap();
+      // calcular start/end
+      // copiar solo audio_buf.samples[start_sample..end_sample].to_vec()
+  };
+  ```
+
+  Luego calcular STFT local fuera del lock.
+
+  Estado: IMPLEMENTADO CORRECTAMENTE en `src-tauri/src/lib.rs`.
+  - El comando copia solo el slice visible necesario.
+  - El lock de `audio` se libera antes de `compute_stft_multichannel`.
+  - El mapeo temporal se corrigió para trabajar sobre frames por canal.
+
+  Riesgo:
+
+  - Sigue copiando el slice visible, pero evita bloquear el audio completo durante FFT.
+  - Hay que corregir el cálculo: `view_start` / `view_end` deberían mapearse a muestras por canal, no al largo
+    interleaved total sin cuidado. El código actual usa `audio_buf.samples.len()`, que incluye canales interleaved;
+    conviene revisar esa semántica al tocarlo.
+
+  4. Cambio Mínimo Para `reparar_glitches_seleccionados`
+
+  Separar en tres fases:
+
+  1. Lock corto de mutación:
+      - tomar `audio_lock` y `stft_lock`;
+      - detener playback;
+      - aplicar reparación;
+      - actualizar `STFT` parcial;
+      - actualizar `undo` / `redo`;
+      - extraer datos necesarios para respuesta: `STFT` paginada o matriz clonada mínima, envelope source o audio snapshot;
+      - soltar locks.
+
+  2. Cómputo fuera de locks:
+      - `get_paged_spectrogram`;
+      - `stft_to_binary`;
+      - `calcular_envolvente`.
+
+  3. Responder al frontend.
+
+  Cambio mínimo posible:
+
+  - Después de actualizar `STFT`, clonar `stft_res` y `audio_buf.samples` para generar respuesta fuera del lock.
+
+  Estado: IMPLEMENTADO CORRECTAMENTE en `src-tauri/src/lib.rs`.
+  - La mutación de audio/STFT/undo sigue bajo lock.
+  - La generación y serialización del espectrograma se movieron fuera de la sección crítica.
+  - La envolvente y el snapshot de `STFT` se consolidan antes de liberar los locks.
+
+  Riesgo:
+
+  - Clonar `audio_buf.samples` para envolvente puede ser pesado.
+  - Alternativa mejor: calcular envolvente dentro del lock, porque es barato comparado con `STFT` binaria, y clonar solo
+    `StftResult` paginado. Pero entonces sigue habiendo algo de cómputo bajo lock.
+  - Riesgo de consistencia: si se sueltan locks antes de generar respuesta y otra reparación entra, la respuesta puede no
+    coincidir con el último estado. Para evitarlo, usar snapshot versionado o mantener status frontend bloqueando acciones
+    concurrentes.
+
+  5. Introducir Versionado De Estado
+
+  Agregar en `AppState`:
+
+  ```rust
+  pub audio_version: Mutex<u64>
+  ```
+
+  Incrementar tras reparación, undo, redo, carga.
+
+  Cada comando que trabaja sobre snapshot puede devolver `version`.
+
+  Uso:
+
+  - El frontend podría ignorar respuestas antiguas si `matrixVersion` o `audio_version` no coincide.
+  - El backend puede validar antes de consolidar una operación destructiva.
+
+  Riesgo:
+
+  - Pequeño aumento de complejidad.
+  - No resuelve por sí solo las copias, pero protege contra respuestas tardías.
+
+  6. Orden De Implementación Recomendado
+
+  1. Refactorizar solo `ejecutar_analisis_avanzado` con snapshot. [COMPLETADO]
+
+  2. Refactorizar `obtener_espectrograma_dinamico` para copiar solo el slice visible y calcular STFT fuera del lock.
+     [COMPLETADO]
+
+  3. Refactorizar `reparar_glitches_seleccionados` para mover la serialización del espectrograma fuera del lock.
+     [COMPLETADO]
+
+  4. Añadir `audio_version`.
+      - Preparación para concurrencia robusta.
+
+  5. Refactorizar reparación / undo / redo.
+      - Mayor riesgo.
+      - Hacerlo después de tener versionado o bloqueo lógico claro.
+
+  7. Riesgos Asociados
+
+  - Memoria temporal mayor si se usa `.clone()` como primera solución.
+  - Respuestas obsoletas si dos comandos largos corren en paralelo y devuelven en orden distinto.
+  - Inconsistencia `audio` / `STFT` si se separan locks sin una política clara de snapshot / consolidación.
+  - Posibles regresiones en loop playback si una reparación detiene `sink` mientras otro comando intenta reproducir.
+  - Mayor complejidad si se migra directamente a `Arc<RwLock<...>>`; no lo haría como primer paso.
+
+  Cambio mínimo recomendado para empezar: ya aplicado. La primera tanda del P0 quedó implementada en
+  `ejecutar_analisis_avanzado`, `obtener_espectrograma_dinamico` y `reparar_glitches_seleccionados`.
