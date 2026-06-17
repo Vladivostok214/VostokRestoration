@@ -1,4 +1,5 @@
 pub mod dsp;
+pub mod vostok_dsp;
 
 use std::sync::Mutex;
 use dsp::{AudioBuffer, StftResult, GlitchEvent, ViewportConfig, HermiteConfig, ScanParams, AudioHistoryState, GlitchType, update_stft_range_multichannel};

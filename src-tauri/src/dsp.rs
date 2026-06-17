@@ -16,6 +16,9 @@ use symphonia::core::io::MediaSourceStream;
 use symphonia::core::meta::MetadataOptions;
 use symphonia::core::probe::Hint;
 
+pub use crate::vostok_dsp::types::*;
+pub use crate::vostok_dsp::utils::*;
+
 /// Estructura contenedora de un canal de audio decodificado
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AudioBuffer {
