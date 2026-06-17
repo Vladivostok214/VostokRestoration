@@ -1,7 +1,7 @@
 use rayon::prelude::*;
 use crate::vostok_dsp::types::*;
 use crate::vostok_dsp::utils::*;
-use crate::dsp::compute_stft;
+use crate::vostok_dsp::stft::compute_stft;
 
 /// Extrae características multidimensionales de todos los frames alineados con la STFT
 pub fn extract_features(
