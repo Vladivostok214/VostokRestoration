@@ -126,12 +126,3 @@ impl Default for HermiteConfig {
     }
 }
 
-/// Representa el cambio de estado de un fragmento de audio modificado (para deshacer/rehacer)
-#[derive(Debug, Clone)]
-pub struct AudioHistoryState {
-    pub channel: u16,
-    pub glitch_sample_index: usize,
-    pub start_sample: usize,
-    pub old_samples: Vec<f32>,
-    pub new_samples: Vec<f32>,
-}
