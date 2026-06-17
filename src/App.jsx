@@ -29,6 +29,7 @@ const INITIAL_SESSION = {
   progress:     0,      // 0–1
   profile:      'hum',  // 'transient' | 'hum'
   matrixVersion: 0,     // Contador ligero para notificar cambios en el buffer binario
+  audioVersion: 0,      // Versión del buffer de audio en el backend
   spectrogramCache: { transient: null, hum: null }, // Metadatos ligeros de visualización
   loopStart:    0.0,
   loopEnd:      0.0,

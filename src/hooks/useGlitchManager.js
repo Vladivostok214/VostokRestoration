@@ -17,7 +17,7 @@ import { SPECTROGRAM_STORAGE } from '../components/spectrogramStore.js';
 
 /**
  * Parsea la respuesta binaria del espectrograma enviada por el backend Rust.
- * Formato: [frames: u32 LE][bins: u32 LE][matrix: u8 × frames×bins]
+ * Formato: [frames: u32 LE][bins: u32 LE][audio_version: u64 LE][matrix: u8 × frames×bins]
  */
 function parseBinarySpectrogram(responseBytes) {
   if (!responseBytes) return null;
@@ -38,10 +38,11 @@ function parseBinarySpectrogram(responseBytes) {
   const dv     = new DataView(buffer, byteOffset, byteLength);
   const frames = dv.getUint32(0, true);
   const bins   = dv.getUint32(4, true);
-  const matrix = new Uint8Array(buffer, byteOffset + 8, frames * bins);
+  const audio_version = dv.getBigUint64(8, true);
+  const matrix = new Uint8Array(buffer, byteOffset + 16, frames * bins);
 
-  console.log(`[VOSTOK MEMORY] BINARY_PARSING | ELAPSED: ${(performance.now() - tStart).toFixed(3)}ms | FRAMES: ${frames} | BINS: ${bins}`);
-  return { matrix, frames, bins };
+  console.log(`[VOSTOK MEMORY] BINARY_PARSING | ELAPSED: ${(performance.now() - tStart).toFixed(3)}ms | FRAMES: ${frames} | BINS: ${bins} | VERSION: ${audio_version}`);
+  return { matrix, frames, bins, audioVersion: Number(audio_version) };
 }
 
 /**
@@ -65,7 +66,7 @@ function cleanGlitchForBackend(g) {
 // ── HOOK PRINCIPAL ──
 
 export default function useGlitchManager(session, updateSession, showToast, stopPlaybackState) {
-  const { glitches, matrixVersion, status } = session;
+  const { glitches, matrixVersion, status, audioVersion } = session;
 
   // ── ESTADO LOCAL DEL HOOK ──
   const [selectedGlitch,        setSelectedGlitch]        = useState(null);
@@ -158,6 +159,7 @@ export default function useGlitchManager(session, updateSession, showToast, stop
         glitches: response.glitches,
         status: 'ready',
         matrixVersion: matrixVersion + 1,
+        audioVersion: response.audio_version,
         waveformEnvelope: response.waveform_envelope,
         ...(parsed ? { stftFrames: parsed.frames, stftBins: parsed.bins } : {})
       });
@@ -213,6 +215,7 @@ export default function useGlitchManager(session, updateSession, showToast, stop
         glitches:      response.glitches,
         status:        'ready',
         matrixVersion: matrixVersion + 1,
+        audioVersion:  response.audio_version,
         waveformEnvelope: response.waveform_envelope,
         ...(parsed ? { stftFrames: parsed.frames, stftBins: parsed.bins } : {})
       });
@@ -257,6 +260,7 @@ export default function useGlitchManager(session, updateSession, showToast, stop
         glitches: response.glitches,
         status: 'ready',
         matrixVersion: matrixVersion + 1,
+        audioVersion: response.audio_version,
         waveformEnvelope: response.waveform_envelope,
         ...(parsed ? { stftFrames: parsed.frames, stftBins: parsed.bins } : {})
       });
@@ -315,6 +319,7 @@ export default function useGlitchManager(session, updateSession, showToast, stop
       updateSession({
         glitches: response.glitches,
         matrixVersion: matrixVersion + 1,
+        audioVersion: response.audio_version,
         waveformEnvelope: response.waveform_envelope,
         ...(parsed ? { stftFrames: parsed.frames, stftBins: parsed.bins } : {})
       });
@@ -342,6 +347,7 @@ export default function useGlitchManager(session, updateSession, showToast, stop
       updateSession({
         glitches: response.glitches,
         matrixVersion: matrixVersion + 1,
+        audioVersion: response.audio_version,
         waveformEnvelope: response.waveform_envelope,
         ...(parsed ? { stftFrames: parsed.frames, stftBins: parsed.bins } : {})
       });

@@ -27,6 +27,8 @@ pub struct AppState {
     pub undo_stack: Mutex<Vec<Vec<AudioHistoryState>>>,
     /// Pila para Rehacer (Redo Stack)
     pub redo_stack: Mutex<Vec<Vec<AudioHistoryState>>>,
+    /// Versión actual del estado de audio para control de concurrencia
+    pub audio_version: Mutex<u64>,
 }
 
 /// Metadatos iniciales del análisis de audio retornados al frontend
@@ -48,6 +50,8 @@ pub struct InitialAnalysis {
     pub stft_bins: usize,
     /// Envolvente de picos temporales para visualización vectorial superpuesta
     pub waveform_envelope: Vec<f32>,
+    /// Versión del audio tras la carga
+    pub audio_version: u64,
 }
 
 /// Comando Tauri: Carga un archivo de audio y calcula el plano espectral inicial.
@@ -84,6 +88,10 @@ fn cargar_y_analizar_archivo(
     *app.stft.lock().unwrap() = Some(stft_res);
     app.undo_stack.lock().unwrap().clear();
     app.redo_stack.lock().unwrap().clear();
+    
+    let mut version = app.audio_version.lock().unwrap();
+    *version += 1;
+    let current_version = *version;
 
     Ok(InitialAnalysis {
         glitches,
@@ -94,6 +102,7 @@ fn cargar_y_analizar_archivo(
         stft_frames,
         stft_bins,
         waveform_envelope,
+        audio_version: current_version,
     })
 }
 
@@ -104,9 +113,10 @@ fn obtener_espectrograma_visible(
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<u8>, String> {
     let app = state.inner();
+    let audio_version = *app.audio_version.lock().unwrap();
     let stft_lock = app.stft.lock().unwrap();
     if let Some(ref stft) = *stft_lock {
-        Ok(dsp::stft_to_binary(&dsp::get_paged_spectrogram(stft, &config)))
+        Ok(dsp::stft_to_binary(&dsp::get_paged_spectrogram(stft, &config), audio_version))
     } else {
         Err("No hay ninguna matriz espectral cargada en memoria. Carga un archivo primero.".to_string())
     }
@@ -122,6 +132,7 @@ fn obtener_espectrograma_dinamico(
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<u8>, String> {
     let app = state.inner();
+    let audio_version = *app.audio_version.lock().unwrap();
     let audio_lock = app.audio.lock().unwrap();
     let audio_buf = match &*audio_lock {
         Some(buf) => buf,
@@ -162,7 +173,7 @@ fn obtener_espectrograma_dinamico(
                 end_frame: (view_end * stft.num_frames as f64) as usize,
                 max_texture_width: max_width,
             };
-            return Ok(dsp::stft_to_binary(&dsp::get_paged_spectrogram(stft, &config)));
+            return Ok(dsp::stft_to_binary(&dsp::get_paged_spectrogram(stft, &config), audio_version));
         }
         return Err("Muestras insuficientes para computar la STFT local.".to_string());
     }
@@ -177,7 +188,7 @@ fn obtener_espectrograma_dinamico(
         max_texture_width: max_width,
     };
     let paged = dsp::get_paged_spectrogram(&stft_res, &config);
-    Ok(dsp::stft_to_binary(&paged))
+    Ok(dsp::stft_to_binary(&paged, audio_version))
 }
 
 /// Comando Tauri: Aplica una reparación de discontinuidades sobre el buffer cargado.
@@ -526,6 +537,11 @@ fn reparar_glitches_seleccionados(
 
         let stft_res = stft_lock.as_ref().unwrap();
 
+        // Incrementar versión de audio ANTES de serializar para que el espectrograma lleve la versión correcta
+        let mut version = app.audio_version.lock().unwrap();
+        *version += 1;
+        let current_version = *version;
+
         // Generar espectrograma completo
         let full_viewport = ViewportConfig {
             start_frame: 0,
@@ -533,7 +549,7 @@ fn reparar_glitches_seleccionados(
             max_texture_width: 2048,
         };
         let paged_stft = dsp::get_paged_spectrogram(stft_res, &full_viewport);
-        let spectrogram = dsp::stft_to_binary(&paged_stft);
+        let spectrogram = dsp::stft_to_binary(&paged_stft, current_version);
         let waveform_envelope = calcular_envolvente(&audio_buf.samples, 1000);
 
         // Notificar en consola del backend la cantidad de glitches quirúrgicos reparados
@@ -548,6 +564,7 @@ fn reparar_glitches_seleccionados(
             spectrogram,
             waveform_envelope,
             glitches: all_glitches,
+            audio_version: current_version,
         })
     } else {
         Err("No hay datos de audio en memoria sobre los cuales aplicar la reparación.".to_string())
@@ -559,6 +576,7 @@ pub struct UndoRedoResponse {
     pub spectrogram: Vec<u8>,
     pub glitches: Vec<GlitchEvent>,
     pub waveform_envelope: Vec<f32>,
+    pub audio_version: u64,
 }
 
 /// Comando Tauri: Deshace la última acción de reparación
@@ -628,19 +646,25 @@ fn deshacer_accion(
         let stft_res = stft_lock.as_ref().unwrap();
 
         redo_lock.push(action);
+        
+        // Incrementar versión de audio
+        let mut version = app.audio_version.lock().unwrap();
+        *version += 1;
+        let current_version = *version;
 
         let full_viewport = ViewportConfig {
             start_frame: 0,
             end_frame: stft_res.num_frames,
             max_texture_width: 2048,
         };
-        let spectrogram = dsp::stft_to_binary(&dsp::get_paged_spectrogram(stft_res, &full_viewport));
+        let spectrogram = dsp::stft_to_binary(&dsp::get_paged_spectrogram(stft_res, &full_viewport), current_version);
         let waveform_envelope = calcular_envolvente(&audio_buf.samples, 1000);
 
         Ok(UndoRedoResponse {
             spectrogram,
             glitches,
             waveform_envelope,
+            audio_version: current_version,
         })
     } else {
         Err("No hay datos de audio en memoria.".to_string())
@@ -714,19 +738,25 @@ fn rehacer_accion(
         let stft_res = stft_lock.as_ref().unwrap();
 
         undo_lock.push(action);
+        
+        // Incrementar versión de audio
+        let mut version = app.audio_version.lock().unwrap();
+        *version += 1;
+        let current_version = *version;
 
         let full_viewport = ViewportConfig {
             start_frame: 0,
             end_frame: stft_res.num_frames,
             max_texture_width: 2048,
         };
-        let spectrogram = dsp::stft_to_binary(&dsp::get_paged_spectrogram(stft_res, &full_viewport));
+        let spectrogram = dsp::stft_to_binary(&dsp::get_paged_spectrogram(stft_res, &full_viewport), current_version);
         let waveform_envelope = calcular_envolvente(&audio_buf.samples, 1000);
 
         Ok(UndoRedoResponse {
             spectrogram,
             glitches,
             waveform_envelope,
+            audio_version: current_version,
         })
     } else {
         Err("No hay datos de audio en memoria.".to_string())

@@ -208,7 +208,15 @@ export default function VostokRestoration({ session, updateSession, onReset }) {
       const dv     = new DataView(buffer, byteOffset, byteLength);
       const frames = dv.getUint32(0, true);
       const bins   = dv.getUint32(4, true);
-      const matrix = new Uint8Array(buffer, byteOffset + 8, frames * bins);
+      const audio_version = Number(dv.getBigUint64(8, true));
+      const matrix = new Uint8Array(buffer, byteOffset + 16, frames * bins);
+
+      // --- [VALIDACIÓN DE VERSIÓN SOTA] ---
+      if (audio_version !== session.audioVersion) {
+        console.warn(`[VOSTOK] Descartando espectrograma HD obsoleto (Respuesta: v${audio_version}, Actual: v${session.audioVersion})`);
+        updateSession({ status: 'ready' });
+        return;
+      }
 
       // Almacenar en la memoria aislada para WebGL
       SPECTROGRAM_STORAGE.hum = matrix;

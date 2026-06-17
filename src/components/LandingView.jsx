@@ -92,8 +92,9 @@ export default function LandingView({ onFileLoaded }) {
         const dv = new DataView(buffer, byteOffset);
         parsedFrames = dv.getUint32(0, true);
         parsedBins   = dv.getUint32(4, true);
-        parsedMatrix = new Uint8Array(buffer, byteOffset + 8, parsedFrames * parsedBins);
-        console.log(`[LandingView] Espectrograma: ${parsedFrames} frames × ${parsedBins} bins`);
+        const audioVersion = Number(dv.getBigUint64(8, true));
+        parsedMatrix = new Uint8Array(buffer, byteOffset + 16, parsedFrames * parsedBins);
+        console.log(`[LandingView] Espectrograma: ${parsedFrames} frames × ${parsedBins} bins | Version: ${audioVersion}`);
       } catch (parseErr) {
         console.warn('[LandingView] Error parseando binario:', parseErr);
       }
@@ -121,6 +122,7 @@ export default function LandingView({ onFileLoaded }) {
         totalStftFrames: parsedFrames || analysis.stft_frames,
         totalStftBins:   parsedBins   || analysis.stft_bins,
         waveformEnvelope: analysis.waveform_envelope,
+        audioVersion:    analysis.audio_version,
         status:          'ready',
         progress:        1.0,
         threshold,

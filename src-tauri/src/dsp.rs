@@ -1567,11 +1567,13 @@ pub fn compute_stft_multichannel(
 }
 
 /// Serializa un `StftResult` a bytes compactos para transferencia IPC.
-pub fn stft_to_binary(stft: &StftResult) -> Vec<u8> {
+/// Formato: [frames: u32 LE][bins: u32 LE][audio_version: u64 LE][matrix: u8 × frames×bins]
+pub fn stft_to_binary(stft: &StftResult, audio_version: u64) -> Vec<u8> {
     let payload = stft.num_frames * stft.num_bins;
-    let mut buf = Vec::with_capacity(8 + payload);
+    let mut buf = Vec::with_capacity(8 + 8 + payload);
     buf.extend_from_slice(&(stft.num_frames as u32).to_le_bytes());
     buf.extend_from_slice(&(stft.num_bins   as u32).to_le_bytes());
+    buf.extend_from_slice(&audio_version.to_le_bytes());
     let noise_floor_db = -96.0;
     
     for &mag in &stft.matrix {
