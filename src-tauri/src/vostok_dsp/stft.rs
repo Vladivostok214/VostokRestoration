@@ -284,6 +284,11 @@ pub fn update_stft_range_multichannel(
 }
 
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::vostok_dsp::detectors::consolidar_y_correlacionar_contextualmente;
+
     #[test]
     fn test_consolidacion_contextual_distortion() {
         // Clic solapado con distorsión
@@ -319,3 +324,4 @@ pub fn update_stft_range_multichannel(
         assert!(filtered.iter().any(|e| e.event_type == GlitchType::Distortion));
         assert!(!filtered.iter().any(|e| e.event_type == GlitchType::Click));
     }
+}

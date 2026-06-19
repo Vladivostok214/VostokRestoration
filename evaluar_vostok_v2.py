@@ -13,6 +13,8 @@ from pathlib import Path
 
 # Margen de tolerancia para eventos puntuales (50ms)
 PUNCTUAL_TOLERANCE = 0.05
+# Tolerancia especial para Pops basados en STFT debido al retardo de ventana (~85ms esperado)
+POP_TOLERANCE = 0.10
 
 # Umbral de solapamiento para considerar un MATCH en eventos continuos
 # IoU >= 0.20 o solapamiento parcial >= 30% del intervalo del GT o Vostok
@@ -186,8 +188,9 @@ def evaluar_vostok_v2(ruta_gt, ruta_vostok):
                 # Caso Puntual: Proximidad temporal
                 # Medimos la distancia entre sus tiempos de inicio
                 dist = abs(gt["start"] - vos["start"])
-                if dist <= PUNCTUAL_TOLERANCE:
-                    score = 1.0 - (dist / PUNCTUAL_TOLERANCE)
+                tolerance = POP_TOLERANCE if gt["type"] == "Pop" else PUNCTUAL_TOLERANCE
+                if dist <= tolerance:
+                    score = 1.0 - (dist / tolerance)
                     if score > best_score:
                         best_score = score
                         best_match = vos
@@ -224,8 +227,9 @@ def evaluar_vostok_v2(ruta_gt, ruta_vostok):
                         best_match = vos
             else:
                 dist = abs(gt["start"] - vos["start"])
-                if dist <= PUNCTUAL_TOLERANCE:
-                    score = 1.0 - (dist / PUNCTUAL_TOLERANCE)
+                tolerance = POP_TOLERANCE if (gt["type"] == "Pop" or vos["type"] == "Pop") else PUNCTUAL_TOLERANCE
+                if dist <= tolerance:
+                    score = 1.0 - (dist / tolerance)
                     if score > best_score:
                         best_score = score
                         best_match = vos
@@ -368,6 +372,13 @@ def evaluar_vostok_v2(ruta_gt, ruta_vostok):
         print()
 
 if __name__ == "__main__":
+    if hasattr(sys.stdout, 'reconfigure'):
+        try:
+            sys.stdout.reconfigure(encoding='utf-8')
+            sys.stderr.reconfigure(encoding='utf-8')
+        except Exception:
+            pass
+
     if len(sys.argv) < 3:
         print("💡 Uso: python evaluar_vostok_v2.py <GROUND_TRUTH.csv> <VOSTOK_REPORT.txt>")
         sys.exit(1)

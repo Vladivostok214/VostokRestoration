@@ -178,13 +178,20 @@ pub fn detectar_clicks(
         }
         // --------------------------------------------
 
+        let avg_delta = {
+            let mut sum_d = 0.0f32;
+            for i in 1..block_samples.len() {
+                sum_d += (block_samples[i] - block_samples[i - 1]).abs();
+            }
+            sum_d / (block_samples.len() - 1) as f32
+        };
+
         // Estimar coeficientes AR mediante Levinson-Durbin in-place
         if let Some(stable_order) = lpc_levinson_durbin_in_place(block_samples, lpc_order, &mut a_coefs) {
             // Limpiar únicamente la porción no calculada del residuo
             residual[0..stable_order].fill(0.0);
 
             // Calcular señal residual e[n] para el bloque
-            let mut sum_sq_residual = 0.0f64;
             let mut count = 0;
 
             for n in stable_order..block_size {
@@ -194,7 +201,6 @@ pub fn detectar_clicks(
                 }
                 let err = block_samples[n] - pred;
                 residual[n] = err;
-                sum_sq_residual += (err as f64) * (err as f64);
                 count += 1;
             }
 
@@ -202,8 +208,22 @@ pub fn detectar_clicks(
                 continue;
             }
 
-            // Desviación estándar local del error de predicción (ruido de fondo residual)
-            let std_dev_residual = (sum_sq_residual / count as f64).sqrt() as f32;
+            // Estimación robusta de la desviación estándar usando MAD (Median Absolute Deviation)
+            let mut abs_residuals: Vec<f32> = residual[stable_order..block_size]
+                .iter()
+                .map(|&r| r.abs())
+                .collect();
+            let count_res = abs_residuals.len();
+            if count_res == 0 {
+                continue;
+            }
+            abs_residuals.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+            let median = if count_res % 2 == 0 {
+                (abs_residuals[count_res / 2 - 1] + abs_residuals[count_res / 2]) * 0.5
+            } else {
+                abs_residuals[count_res / 2]
+            };
+            let std_dev_residual = (1.4826 * median).max(1e-6);
             let local_threshold = std_dev_residual * std_multiplier;
 
             // Escanear el residuo en busca de anomalías impulsivas
@@ -214,11 +234,14 @@ pub fn detectar_clicks(
                 }
 
                 let val_err = residual[n].abs();
+
+
                 // 1. ¿El error del predictor supera el umbral estadístico local?
                 if val_err > local_threshold && val_err > min_absolute_delta {
                     let delta_physical = (block_samples[n] - block_samples[n - 1]).abs();
+                    let min_relative_delta = avg_delta * (2.5 + (1.0 - sensitivity) * 4.5);
 
-                    if delta_physical < min_physical_delta {
+                    if delta_physical < min_physical_delta || delta_physical < min_relative_delta {
                         continue;
                     }
 
@@ -243,8 +266,8 @@ pub fn detectar_clicks(
 
                     let mut ratio_threshold = 4.0 - (sensitivity * 2.5);
                     if audio_mode == AudioMode::Voice {
-                        // Relajar la exigencia de aislamiento en voz (sibilancia y fricativas tienen alto ruido de fondo)
-                        ratio_threshold = ratio_threshold.min(1.2); 
+                        // Aumentado de 1.2 a 1.6 en voz para exigir un decaimiento real de la discontinuidad
+                        ratio_threshold = ratio_threshold.min(1.6); 
                     }
                     if ratio_prev < ratio_threshold || ratio_next < ratio_threshold {
                         continue; // No es un click lo suficientemente aislado, es contenido musical
@@ -254,8 +277,8 @@ pub fn detectar_clicks(
                     let val_err_next2 = residual[n + 2].abs();
                     let mut next2_threshold = 0.3 + (sensitivity * 0.5);
                     if audio_mode == AudioMode::Voice {
-                        // Permitir más resonancia para ataques glotales masivos de vocales cortas
-                        next2_threshold = next2_threshold.max(1.5);
+                        // En voz exigimos decaimiento a 0.85 en lugar de permitir resonancia masiva (1.5x)
+                        next2_threshold = next2_threshold.min(0.85);
                     }
                     if val_err_next2 > val_err * next2_threshold {
                         continue; // Energía sostenida, descartar click
@@ -288,7 +311,12 @@ pub fn detectar_clicks(
                     }
                     let avg_neighbor_hfer = if neighbor_count > 0.0 { neighbor_hfer_sum / neighbor_count } else { 0.0 };
 
-                    let min_hfer = 0.08 - (sensitivity * 0.06);
+                    let mut min_hfer = 0.08 - (sensitivity * 0.06);
+                    let ratio_lpc = val_err / local_threshold.max(1e-6);
+                    if ratio_lpc > 2.5 {
+                        let floor = 0.01f32;
+                        min_hfer = floor + (min_hfer - floor) * (-(ratio_lpc - 2.5)).exp();
+                    }
                     let hfer_neighbor_factor = 3.0 - (sensitivity * 2.2);
 
                     let is_hfer_valid = hfer > min_hfer && (
@@ -443,36 +471,54 @@ pub fn detectar_clicks(
     events
 }
 
-/// Detector de Pops & Low Thumps (Bajas Frecuencias < 150 Hz)
+/// Detector de Pops & Low Thumps (Bajas Frecuencias < 120 Hz)
 pub fn detectar_pops(
     features: &[FrameFeatures],
     stft: &StftResult,
     sample_rate: u32,
-    global_rms: f32,
+    _global_rms: f32,
 ) -> Vec<GlitchEvent> {
     let mut events = Vec::new();
     let num_frames = stft.num_frames;
     let num_bins = stft.num_bins;
     let hop_size = 1024;
     
-    // 150 Hz bin boundary
-    let k_150 = ((150.0 * 4096.0 / sample_rate as f32).round() as usize).min(num_bins).max(2);
+    // 120 Hz bin boundary (excluyendo el bin DC 0 para evitar offset de continua)
+    let k_120 = ((120.0 * 4096.0 / sample_rate as f32).round() as usize).min(num_bins).max(3);
     
     let mut inside_pop = false;
     let mut start_frame = 0;
+    let context_size = 8; // Ventana de contexto precedente de ~185ms
     
-    for t in 0..num_frames {
+    for t in context_size..num_frames {
         let start_bin = t * num_bins;
         let mags = &stft.matrix[start_bin..start_bin + num_bins];
         
-        let total_energy: f32 = mags.iter().sum();
-        let low_energy: f32 = mags[0..k_150].iter().sum();
+        // Calcular energía en baja frecuencia (20-120 Hz), omitiendo bin 0
+        let low_energy: f32 = mags[1..k_120].iter().sum();
         
-        let is_low_energy_dominant = total_energy > 1e-6 && (low_energy / total_energy) > 0.8;
-        let has_high_crest = features[t].crest_factor > 5.0;
-        let has_high_rms = features[t].rms > global_rms * 3.0;
+        // Calcular promedio de energía en baja frecuencia en los frames precedentes
+        let mut prev_low_energy_sum = 0.0f32;
+        for i in 1..=context_size {
+            let prev_start_bin = (t - i) * num_bins;
+            let prev_mags = &stft.matrix[prev_start_bin..prev_start_bin + num_bins];
+            prev_low_energy_sum += prev_mags[1..k_120].iter().sum::<f32>();
+        }
+        let avg_prev_low_energy = prev_low_energy_sum / context_size as f32;
         
-        if is_low_energy_dominant && has_high_crest && has_high_rms {
+        // Ratio de incremento relativo
+        let energy_ratio = if avg_prev_low_energy > 1e-5 {
+            low_energy / avg_prev_low_energy
+        } else {
+            1.0
+        };
+        
+        // Un pop es un incremento rápido y transitorio de energía subsónica/baja
+        let is_pop_frame = energy_ratio > 3.0 
+            && low_energy > 0.04 
+            && features[t].rms > 0.004;
+        
+        if is_pop_frame {
             if !inside_pop {
                 inside_pop = true;
                 start_frame = t;
@@ -480,35 +526,46 @@ pub fn detectar_pops(
         } else {
             if inside_pop {
                 inside_pop = false;
-                let start_sample = start_frame * hop_size;
-                events.push(GlitchEvent {
-                    sample_index: start_sample,
-                    time_secs: start_sample as f64 / sample_rate as f64,
-                    amplitude_delta: features[start_frame].rms,
-                    direction: 0,
-                    event_type: GlitchType::Pop,
-                    repaired: false,
-                    frequency: Some(75.0),
-                    channel: 0,
-                    duration_samples: Some((t - start_frame) * hop_size),
-                });
+                let duration_frames = t - start_frame;
+                
+                // Los pops de cinta o de impacto físico son transitorios muy breves (15ms - 60ms).
+                // Con saltos de 23.2ms, deben durar entre 1 y 3 frames de la STFT.
+                // Si duran más, es un bajo sostenido, bombo o hum largo, no un pop.
+                if duration_frames >= 1 && duration_frames <= 3 {
+                    let start_sample = start_frame * hop_size;
+                    events.push(GlitchEvent {
+                        sample_index: start_sample,
+                        time_secs: start_sample as f64 / sample_rate as f64,
+                        amplitude_delta: features[start_frame].rms,
+                        direction: 0,
+                        event_type: GlitchType::Pop,
+                        repaired: false,
+                        frequency: Some(40.0), // Frecuencia representativa central del Thump
+                        channel: 0,
+                        duration_samples: Some(duration_frames * hop_size),
+                    });
+                }
             }
         }
     }
     
+    // Si termina en estado de pop pero cumple la duración
     if inside_pop {
-        let start_sample = start_frame * hop_size;
-        events.push(GlitchEvent {
-            sample_index: start_sample,
-            time_secs: start_sample as f64 / sample_rate as f64,
-            amplitude_delta: features[start_frame].rms,
-            direction: 0,
-            event_type: GlitchType::Pop,
-            repaired: false,
-            frequency: Some(75.0),
-            channel: 0,
-            duration_samples: Some((num_frames - start_frame) * hop_size),
-        });
+        let duration_frames = num_frames - start_frame;
+        if duration_frames >= 1 && duration_frames <= 3 {
+            let start_sample = start_frame * hop_size;
+            events.push(GlitchEvent {
+                sample_index: start_sample,
+                time_secs: start_sample as f64 / sample_rate as f64,
+                amplitude_delta: features[start_frame].rms,
+                direction: 0,
+                event_type: GlitchType::Pop,
+                repaired: false,
+                frequency: Some(40.0),
+                channel: 0,
+                duration_samples: Some(duration_frames * hop_size),
+            });
+        }
     }
     
     events
@@ -1013,6 +1070,8 @@ pub fn ejecutar_analisis_dsp_mono(
 pub fn consolidar_y_correlacionar_contextualmente(
     mut events: Vec<GlitchEvent>,
 ) -> Vec<GlitchEvent> {
+
+
     // 1. Extraer intervalos de dropouts y distorsión (clipping)
     let mut dropouts = Vec::new();
     let mut distortions = Vec::new();
