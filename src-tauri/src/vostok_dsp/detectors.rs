@@ -558,7 +558,7 @@ pub fn detectar_clipping(
 
 /// Detector de caídas de señal/dropouts (Dominio Temporal)
 pub fn detectar_dropouts(
-    features: &[FrameFeatures],
+    _features: &[FrameFeatures],
     samples: &[f32],
     sample_rate: u32,
     sensitivity: f32,
@@ -566,62 +566,68 @@ pub fn detectar_dropouts(
 ) -> Vec<GlitchEvent> {
     let mut events = Vec::new();
     let n_samples = samples.len();
-    let num_frames = features.len();
-    if num_frames < 15 {
+
+    // Ventanas temporales
+    let block_len = ((sample_rate as f32 * 0.0025).round() as usize).max(8); // 2.5 ms
+    let step_size = ((sample_rate as f32 * 0.0010).round() as usize).max(4); // 1.0 ms
+    let context_len = ((sample_rate as f32 * 0.150).round() as usize).max(100); // 150 ms
+
+    if n_samples < context_len + block_len {
         return events;
     }
 
-    let hop_size = 1024;
-    let fft_size = 4096;
-    let window_frames = 10; // Ventana de promedio móvil (aprox 210ms)
-    
-    // Umbral de caída relativa en base a la sensibilidad (e.g. del 15% al 50% del promedio móvil)
-    let drop_ratio_threshold = 0.15 + (sensitivity * 0.35);
+    // Calcular suma acumulada de cuadrados para consulta O(1) de RMS
+    let mut sq_sum = vec![0.0f64; n_samples + 1];
+    for i in 0..n_samples {
+        sq_sum[i + 1] = sq_sum[i] + (samples[i] as f64) * (samples[i] as f64);
+    }
+
+    let drop_ratio_threshold = 0.03 + (sensitivity * 0.07); // 3% a 10% de caída relativa
     let mut inside_dropout = false;
     let mut start_idx = 0;
 
-    for t in window_frames..num_frames {
-        let feat = &features[t];
-        
-        // Calcular promedio móvil de RMS de las últimas `window_frames` tramas
-        let avg_rms = {
-            let sum: f32 = (1..=window_frames).map(|i| features[t - i].rms).sum();
-            sum / window_frames as f32
-        }.max(1e-6);
+    let mut i = context_len;
+    while i < n_samples - block_len {
+        // Contexto: Ventana precedente de 150 ms
+        let context_start = i.saturating_sub(context_len);
+        let context_end = i;
+        let context_samples = context_end - context_start;
+        let context_rms = if context_samples > 0 {
+            ((sq_sum[context_end] - sq_sum[context_start]) / context_samples as f64).sqrt() as f32
+        } else {
+            0.0
+        };
 
-        // Para evitar falsos positivos en silencios o pasajes ya muy tenues
-        let is_active_region = avg_rms > global_rms * 0.15 && avg_rms > 0.003;
+        // Bloque actual: Ventana de 2.5 ms
+        let block_start = i;
+        let block_end = i + block_len;
+        let block_rms = ((sq_sum[block_end] - sq_sum[block_start]) / block_len as f64).sqrt() as f32;
 
-        // Umbral absoluto de caída profunda a -90dBFS (~3.162e-5 de amplitud RMS)
-        let threshold_90db = 10.0f32.powf(-90.0 / 20.0);
+        // Comprobación de silencio legítimo en el contexto
+        let is_active_region = context_rms > global_rms * 0.10 && context_rms > 0.0025;
 
-        // Condición de caída abrupta y baja energía profunda (cercana a -90dBFS)
-        let is_dropout_frame = is_active_region && 
-                               feat.rms < threshold_90db &&
-                               feat.rms < avg_rms * drop_ratio_threshold && 
-                               feat.zero_crossing_rate < 0.2;
+        // Condición de caída abrupta profunda
+        let is_dropout_block = is_active_region 
+            && block_rms < context_rms * drop_ratio_threshold 
+            && block_rms < 0.001;
 
-        if is_dropout_frame {
+        if is_dropout_block {
             if !inside_dropout {
                 inside_dropout = true;
-                start_idx = t * hop_size;
+                start_idx = block_start;
             }
         } else {
             if inside_dropout {
                 inside_dropout = false;
-                let end_frame = t;
-                let end_idx = (end_frame * hop_size + fft_size).min(n_samples);
+                let end_idx = block_start;
                 let duration_samples = end_idx - start_idx;
                 let duration_ms = (duration_samples as f32 * 1000.0) / sample_rate as f32;
 
-                // Calibración para voces: Un dropout es una interrupción temporal que debe
-                // recuperarse. Si la duración es mayor a 250ms, se considera una pausa de voz o frase,
-                // no un dropout físico o glitch de señal.
-                if duration_ms >= 20.0 && duration_ms <= 250.0 {
+                if duration_ms >= 4.0 && duration_ms <= 150.0 {
                     events.push(GlitchEvent {
                         sample_index: start_idx,
                         time_secs: start_idx as f64 / sample_rate as f64,
-                        amplitude_delta: avg_rms - feat.rms,
+                        amplitude_delta: context_rms - block_rms,
                         direction: -1,
                         event_type: GlitchType::Dropout,
                         repaired: false,
@@ -632,10 +638,38 @@ pub fn detectar_dropouts(
                 }
             }
         }
+
+        i += step_size;
     }
 
-    // Eliminado el bloque de cierre al final del archivo: si el silencio llega al final,
-    // significa que no hubo recuperación de señal, por ende es un silencio legítimo o fade-out.
+    // Manejar caso si el archivo termina dentro del dropout
+    if inside_dropout {
+        let end_idx = n_samples;
+        let duration_samples = end_idx - start_idx;
+        let duration_ms = (duration_samples as f32 * 1000.0) / sample_rate as f32;
+        if duration_ms >= 4.0 && duration_ms <= 150.0 {
+            let context_start = start_idx.saturating_sub(context_len);
+            let context_end = start_idx;
+            let context_samples = context_end - context_start;
+            let context_rms = if context_samples > 0 {
+                ((sq_sum[context_end] - sq_sum[context_start]) / context_samples as f64).sqrt() as f32
+            } else {
+                0.1
+            };
+
+            events.push(GlitchEvent {
+                sample_index: start_idx,
+                time_secs: start_idx as f64 / sample_rate as f64,
+                amplitude_delta: context_rms,
+                direction: -1,
+                event_type: GlitchType::Dropout,
+                repaired: false,
+                frequency: None,
+                channel: 0,
+                duration_samples: Some(duration_samples),
+            });
+        }
+    }
 
     events
 }
@@ -824,7 +858,7 @@ pub fn detectar_hiss(
     let mut inside_hiss = false;
     let mut start_frame = 0;
     let mut gap_counter = 0;
-    let gap_tolerance = 150; // Hiss tolera hasta ~3.2 segundos de enmascaramiento para consolidar el siseo constante
+    let gap_tolerance = 30; // Hiss tolera hasta ~696ms de enmascaramiento para consolidar el siseo constante
 
     for t in 0..num_frames {
         if frame_hiss_detected[t] {
@@ -1072,12 +1106,24 @@ fn consolidar_canales_glitches(events: Vec<GlitchEvent>) -> Vec<GlitchEvent> {
                 continue;
             }
             let other = &events[j];
-            if other.event_type == current.event_type
-                && other.channel != current.channel
-                && (other.time_secs - current.time_secs).abs() < threshold
-            {
-                found_match_idx = Some(j);
-                break;
+            if other.event_type == current.event_type && other.channel != current.channel {
+                let is_match = match current.event_type {
+                    GlitchType::Hum | GlitchType::Hiss | GlitchType::Dropout => {
+                        let current_start = current.sample_index;
+                        let current_end = current_start + current.duration_samples.unwrap_or(0);
+                        let other_start = other.sample_index;
+                        let other_end = other_start + other.duration_samples.unwrap_or(0);
+                        current_start.max(other_start) <= current_end.min(other_end)
+                    }
+                    _ => {
+                        (other.time_secs - current.time_secs).abs() < threshold
+                    }
+                };
+
+                if is_match {
+                    found_match_idx = Some(j);
+                    break;
+                }
             }
         }
 
