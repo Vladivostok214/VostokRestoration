@@ -724,10 +724,12 @@ const SpectrogramGL = memo(function SpectrogramGL({
     const gl = glRef.current;
     gl.bindTexture(gl.TEXTURE_2D, texRef.current);
     gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
-    
+
     // Transferencia Zero-Copy directa a la textura WebGL
+    const t_tex = performance.now();
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, bins, frames, 0, gl.LUMINANCE, gl.UNSIGNED_BYTE, matrix);
-    
+    const t_tex_elapsed = performance.now() - t_tex;
+
     console.log(
       `%c[VOSTOK RENDERING] ESPECTROGRAMA ACTUALIZADO\n` +
       `• Textura WebGL  : Cargada con éxito (${frames} frames x ${bins} bins)\n` +
@@ -735,7 +737,8 @@ const SpectrogramGL = memo(function SpectrogramGL({
       `• Canal Visual   : Actualizado en GPU (Zero-Copy Transfer)`,
       'color: #00FFFF; font-weight: bold;'
     );
-    
+    console.log(`[PROF][WebGL] texImage2D | frames=${frames} bins=${bins} | matrix_bytes=${matrix.length} (${(matrix.length/1024).toFixed(1)}KB) | elapsed=${t_tex_elapsed.toFixed(2)}ms | version=${matrixVersion}`);
+
     if (drawRef.current) {
       drawRef.current();
     }

@@ -1,4 +1,5 @@
 use std::path::Path;
+use rayon::prelude::*;
 use symphonia::core::audio::{AudioBufferRef, Signal};
 use symphonia::core::codecs::{DecoderOptions, CODEC_TYPE_NULL};
 use symphonia::core::errors::Error as SymphoniaError;
@@ -122,19 +123,34 @@ pub fn decode_audio_file<P: AsRef<Path>>(path: P) -> Result<AudioBuffer, String>
 
 /// Serializa un `StftResult` a bytes compactos para transferencia IPC.
 /// Formato: [frames: u32 LE][bins: u32 LE][audio_version: u64 LE][matrix: u8 × frames×bins]
+/// P1.3-E: el payload se llena en paralelo con Rayon. Cada elemento es independiente
+/// (solo depende de stft.matrix[i]), por lo que no hay condiciones de carrera.
 pub fn stft_to_binary(stft: &StftResult, audio_version: u64) -> Vec<u8> {
+    let t0 = std::time::Instant::now();
     let payload = stft.num_frames * stft.num_bins;
-    let mut buf = Vec::with_capacity(8 + 8 + payload);
-    buf.extend_from_slice(&(stft.num_frames as u32).to_le_bytes());
-    buf.extend_from_slice(&(stft.num_bins   as u32).to_le_bytes());
-    buf.extend_from_slice(&audio_version.to_le_bytes());
-    let noise_floor_db = -96.0;
-    
-    for &mag in &stft.matrix {
-        let db = 20.0 * mag.max(1e-6).log10();
-        let normalized = (db - noise_floor_db) / -noise_floor_db;
-        buf.push((normalized.clamp(0.0, 1.0) * 255.0) as u8);
-    }
+
+    // Pre-alocar el buffer completo para permitir escritura paralela por índice.
+    // Header: [frames: u32 LE][bins: u32 LE][audio_version: u64 LE] = 16 bytes exactos.
+    let mut buf = vec![0u8; 16 + payload];
+    buf[0..4].copy_from_slice(&(stft.num_frames as u32).to_le_bytes());
+    buf[4..8].copy_from_slice(&(stft.num_bins   as u32).to_le_bytes());
+    buf[8..16].copy_from_slice(&audio_version.to_le_bytes());
+
+    let noise_floor_db = -96.0f32;
+
+    // Llenar payload en paralelo: cada hilo escribe su propio rango de bytes sin solapamiento.
+    buf[16..]
+        .par_iter_mut()
+        .zip(stft.matrix.par_iter())
+        .for_each(|(out, &mag)| {
+            let db = 20.0 * mag.max(1e-6).log10();
+            let normalized = (db - noise_floor_db) / -noise_floor_db;
+            *out = (normalized.clamp(0.0, 1.0) * 255.0) as u8;
+        });
+
+    eprintln!("[PROF] stft_to_binary | frames={}x bins={} | payload_bytes={} ({:.1}KB) | version={} | elapsed={}µs",
+        stft.num_frames, stft.num_bins, buf.len(), buf.len() as f64 / 1024.0,
+        audio_version, t0.elapsed().as_micros());
     buf
 }
 

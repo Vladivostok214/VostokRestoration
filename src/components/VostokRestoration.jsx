@@ -156,10 +156,10 @@ export default function VostokRestoration({ session, updateSession, onReset }) {
   // ── PUENTES CONTROLADORES DE LOS SCRUBBERS ──
   const restaurarEspectrogramaCompleto = useCallback(() => {
     if (!SPECTROGRAM_STORAGE.full) return;
+    const t0 = performance.now();
     SPECTROGRAM_STORAGE.hum = SPECTROGRAM_STORAGE.full;
     setSpectrogramMode('full');
-    
-    // Dimensiones seguras de la textura completa original
+
     const targetFrames = session.totalStftFrames || 2048;
     const targetBins = session.totalStftBins || 2048;
 
@@ -168,15 +168,13 @@ export default function VostokRestoration({ session, updateSession, onReset }) {
       stftBins: targetBins,
       matrixVersion: matrixVersion + 1
     });
-    console.log(`[VOSTOK] Espectrograma completo restaurado de forma instantánea: ${targetFrames}x${targetBins}`);
+    console.log(`[PROF][FULL] restaurar_completo | frames=${targetFrames} bins=${targetBins} | elapsed=${(performance.now()-t0).toFixed(2)}ms (sin IPC, desde storage)`);
   }, [session.totalStftFrames, session.totalStftBins, matrixVersion, updateSession]);
 
   const handleReRenderLocal = useCallback(async () => {
     if (status !== 'ready' || !fileName) return;
 
     const currentWidth = viewEnd - viewStart;
-    
-    // Si la vista es la completa, no es necesario hacer re-render local (ya está al máximo)
     if (currentWidth >= 0.99) {
       showToast('Zoom no activo. Selecciona un fragmento para aplicar enfoque HD.');
       return;
@@ -186,13 +184,16 @@ export default function VostokRestoration({ session, updateSession, onReset }) {
       showToast('Calculando Enfoque HD local...');
       updateSession({ status: 'analyzing' });
 
+      const t_ipc_start = performance.now();
       const stftRes = await invoke('obtener_espectrograma_dinamico', {
         viewStart,
         viewEnd,
         maxWidth: 2048
       });
+      const t_ipc_end = performance.now();
+      console.log(`[PROF][HD] IPC_roundtrip | elapsed=${(t_ipc_end - t_ipc_start).toFixed(2)}ms | payload_bytes=${stftRes?.byteLength ?? stftRes?.length ?? '?'}`);
 
-      // Parseo binario de la textura generada por Rust
+      const t_parse = performance.now();
       let buffer, byteOffset, byteLength;
       if (stftRes instanceof ArrayBuffer) {
         buffer     = stftRes;
@@ -210,26 +211,29 @@ export default function VostokRestoration({ session, updateSession, onReset }) {
       const bins   = dv.getUint32(4, true);
       const audio_version = Number(dv.getBigUint64(8, true));
       const matrix = new Uint8Array(buffer, byteOffset + 16, frames * bins);
+      console.log(`[PROF][HD] parse_binary | elapsed=${(performance.now() - t_parse).toFixed(2)}ms | frames=${frames} bins=${bins}`);
 
-      // --- [VALIDACIÓN DE VERSIÓN SOTA] ---
       if (audio_version !== session.audioVersion) {
         console.warn(`[VOSTOK] Descartando espectrograma HD obsoleto (Respuesta: v${audio_version}, Actual: v${session.audioVersion})`);
         updateSession({ status: 'ready' });
         return;
       }
 
-      // Almacenar en la memoria aislada para WebGL
+      const t_store = performance.now();
       SPECTROGRAM_STORAGE.hum = matrix;
       setSpectrogramMode('local_hd');
+      console.log(`[PROF][HD] storage_write | elapsed=${(performance.now() - t_store).toFixed(2)}ms`);
 
-      // Actualizar la sesión
+      const t_session = performance.now();
       updateSession({
         stftFrames: frames,
         stftBins: bins,
         matrixVersion: matrixVersion + 1,
         status: 'ready'
       });
-      
+      console.log(`[PROF][HD] updateSession_trigger | elapsed=${(performance.now() - t_session).toFixed(2)}ms`);
+      console.log(`[PROF][HD] TOTAL_FRONTEND | elapsed=${(performance.now() - t_ipc_start).toFixed(2)}ms | viewRange=[${viewStart.toFixed(3)}-${viewEnd.toFixed(3)}]`);
+
       showToast('Enfoque HD calculado con éxito');
     } catch (err) {
       console.warn('[VOSTOK] Fallo al adaptar STFT local:', err);
@@ -529,7 +533,19 @@ export default function VostokRestoration({ session, updateSession, onReset }) {
     // ── Detalle de eventos ──
     const eventLines = glitches.map((g, i) => {
       const estado  = g.repaired ? 'REPARADO ' : 'PENDIENTE';
-      const tc      = toTC(g.time_secs ?? 0);
+      const startSecs   = g.time_secs ?? 0;
+      const startTc     = toTC(startSecs);
+      const evType      = (g.event_type || '').toLowerCase();
+      const durationSecs = (g.duration_samples && sampleRate > 0)
+        ? g.duration_samples / sampleRate
+        : 0;
+      const showRange =
+        evType === 'hum' ||
+        evType === 'hiss' ||
+        (evType === 'dropout' && durationSecs > 2.0);
+      const tc = (showRange && durationSecs > 0)
+        ? `${startTc} -> ${toTC(startSecs + durationSecs)}`
+        : startTc;
       const tipo    = typeFmt(g.event_type);
       const canal   = (chMap[g.channel] ?? String(g.channel)).padEnd(5);
       const mag     = (g.amplitude_delta ?? 0).toFixed(5);

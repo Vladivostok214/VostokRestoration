@@ -586,6 +586,7 @@ fn deshacer_accion(
     mut glitches: Vec<GlitchEvent>,
     state: tauri::State<'_, AppState>,
 ) -> Result<UndoRedoResponse, String> {
+    let t_cmd = std::time::Instant::now();
     let app = state.inner();
     let mut undo_lock = app.undo_stack.lock().unwrap();
     let mut redo_lock = app.redo_stack.lock().unwrap();
@@ -595,29 +596,32 @@ fn deshacer_accion(
     let action = undo_lock.pop().ok_or_else(|| "No hay acciones para deshacer.".to_string())?;
 
     if let Some(ref mut audio_buf) = *audio_lock {
-        // Detener reproducción si está activa para liberar el sink con buffer antiguo
         if let Some(sink) = app.playback_sink.lock().unwrap().take() {
             sink.stop();
         }
 
         let n_channels = audio_buf.channels as usize;
-        
+
+        // ETAPA 1: Aplicar muestras antiguas al buffer PCM
+        let t1 = std::time::Instant::now();
+        let mut total_samples_written = 0usize;
         for state in &action {
             let c = state.channel as usize;
-            
             for g in &mut glitches {
                 if (g.channel == state.channel || (g.channel == 2 && (state.channel == 0 || state.channel == 1))) && g.sample_index == state.glitch_sample_index {
                     g.repaired = false;
                 }
             }
-            
             for (i, &val) in state.old_samples.iter().enumerate() {
                 let interleaved_idx = (state.start_sample + i) * n_channels + c;
                 if interleaved_idx < audio_buf.samples.len() {
                     audio_buf.samples[interleaved_idx] = val;
+                    total_samples_written += 1;
                 }
             }
         }
+        eprintln!("[PROF][UNDO] Etapa1_apply_samples | samples_written={} | elapsed={}µs",
+            total_samples_written, t1.elapsed().as_micros());
 
         let mut min_start = usize::MAX;
         let mut max_end = 0;
@@ -626,6 +630,7 @@ fn deshacer_accion(
             max_end = max_end.max(state.start_sample + state.old_samples.len());
         }
 
+        // ETAPA 2: update_stft_range_multichannel (ya instrumentado en stft.rs)
         if let Some(ref mut stft_res) = *stft_lock {
             if min_start < max_end {
                 let _ = update_stft_range_multichannel(
@@ -645,21 +650,30 @@ fn deshacer_accion(
         }
 
         let stft_res = stft_lock.as_ref().unwrap();
-
         redo_lock.push(action);
-        
-        // Incrementar versión de audio
+
         let mut version = app.audio_version.lock().unwrap();
         *version += 1;
         let current_version = *version;
 
+        // ETAPA 3: get_paged_spectrogram (ya instrumentado en stft.rs)
         let full_viewport = ViewportConfig {
             start_frame: 0,
             end_frame: stft_res.num_frames,
             max_texture_width: 2048,
         };
-        let spectrogram = dsp::stft_to_binary(&dsp::get_paged_spectrogram(stft_res, &full_viewport), current_version);
+        let paged = dsp::get_paged_spectrogram(stft_res, &full_viewport);
+
+        // ETAPA 4: stft_to_binary (ya instrumentado en io.rs)
+        let spectrogram = dsp::stft_to_binary(&paged, current_version);
+
+        // ETAPA 5: Envolvente
+        let t5 = std::time::Instant::now();
         let waveform_envelope = calcular_envolvente(&audio_buf.samples, 1000);
+        eprintln!("[PROF][UNDO] Etapa5_envelope | elapsed={}µs", t5.elapsed().as_micros());
+
+        eprintln!("[PROF][UNDO] TOTAL_CMD | payload_bytes={} | elapsed={}µs",
+            spectrogram.len(), t_cmd.elapsed().as_micros());
 
         Ok(UndoRedoResponse {
             spectrogram,
@@ -678,6 +692,7 @@ fn rehacer_accion(
     mut glitches: Vec<GlitchEvent>,
     state: tauri::State<'_, AppState>,
 ) -> Result<UndoRedoResponse, String> {
+    let t_cmd = std::time::Instant::now();
     let app = state.inner();
     let mut undo_lock = app.undo_stack.lock().unwrap();
     let mut redo_lock = app.redo_stack.lock().unwrap();
@@ -687,29 +702,32 @@ fn rehacer_accion(
     let action = redo_lock.pop().ok_or_else(|| "No hay acciones para rehacer.".to_string())?;
 
     if let Some(ref mut audio_buf) = *audio_lock {
-        // Detener reproducción si está activa para liberar el sink con buffer antiguo
         if let Some(sink) = app.playback_sink.lock().unwrap().take() {
             sink.stop();
         }
 
         let n_channels = audio_buf.channels as usize;
-        
+
+        // ETAPA 1: Aplicar muestras nuevas al buffer PCM
+        let t1 = std::time::Instant::now();
+        let mut total_samples_written = 0usize;
         for state in &action {
             let c = state.channel as usize;
-            
             for g in &mut glitches {
                 if (g.channel == state.channel || (g.channel == 2 && (state.channel == 0 || state.channel == 1))) && g.sample_index == state.glitch_sample_index {
                     g.repaired = true;
                 }
             }
-            
             for (i, &val) in state.new_samples.iter().enumerate() {
                 let interleaved_idx = (state.start_sample + i) * n_channels + c;
                 if interleaved_idx < audio_buf.samples.len() {
                     audio_buf.samples[interleaved_idx] = val;
+                    total_samples_written += 1;
                 }
             }
         }
+        eprintln!("[PROF][REDO] Etapa1_apply_samples | samples_written={} | elapsed={}µs",
+            total_samples_written, t1.elapsed().as_micros());
 
         let mut min_start = usize::MAX;
         let mut max_end = 0;
@@ -718,6 +736,7 @@ fn rehacer_accion(
             max_end = max_end.max(state.start_sample + state.new_samples.len());
         }
 
+        // ETAPA 2: update_stft_range_multichannel (ya instrumentado en stft.rs)
         if let Some(ref mut stft_res) = *stft_lock {
             if min_start < max_end {
                 let _ = update_stft_range_multichannel(
@@ -737,21 +756,30 @@ fn rehacer_accion(
         }
 
         let stft_res = stft_lock.as_ref().unwrap();
-
         undo_lock.push(action);
-        
-        // Incrementar versión de audio
+
         let mut version = app.audio_version.lock().unwrap();
         *version += 1;
         let current_version = *version;
 
+        // ETAPA 3: get_paged_spectrogram (ya instrumentado en stft.rs)
         let full_viewport = ViewportConfig {
             start_frame: 0,
             end_frame: stft_res.num_frames,
             max_texture_width: 2048,
         };
-        let spectrogram = dsp::stft_to_binary(&dsp::get_paged_spectrogram(stft_res, &full_viewport), current_version);
+        let paged = dsp::get_paged_spectrogram(stft_res, &full_viewport);
+
+        // ETAPA 4: stft_to_binary (ya instrumentado en io.rs)
+        let spectrogram = dsp::stft_to_binary(&paged, current_version);
+
+        // ETAPA 5: Envolvente
+        let t5 = std::time::Instant::now();
         let waveform_envelope = calcular_envolvente(&audio_buf.samples, 1000);
+        eprintln!("[PROF][REDO] Etapa5_envelope | elapsed={}µs", t5.elapsed().as_micros());
+
+        eprintln!("[PROF][REDO] TOTAL_CMD | payload_bytes={} | elapsed={}µs",
+            spectrogram.len(), t_cmd.elapsed().as_micros());
 
         Ok(UndoRedoResponse {
             spectrogram,

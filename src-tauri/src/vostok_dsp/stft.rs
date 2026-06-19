@@ -118,6 +118,7 @@ pub fn get_paged_spectrogram(
     stft: &StftResult,
     config: &ViewportConfig,
 ) -> StftResult {
+    let t0 = std::time::Instant::now();
     let num_bins = stft.num_bins;
     let total_frames = stft.num_frames;
 
@@ -126,11 +127,9 @@ pub fn get_paged_spectrogram(
     let visible_frames_len = end - start;
 
     if visible_frames_len == 0 {
-        return StftResult {
-            matrix: Vec::new(),
-            num_frames: 0,
-            num_bins,
-        };
+        eprintln!("[PROF] get_paged_spectrogram | mode=EMPTY | in_frames={} in_bins={} | elapsed={}µs",
+            total_frames, num_bins, t0.elapsed().as_micros());
+        return StftResult { matrix: Vec::new(), num_frames: 0, num_bins };
     }
 
     if visible_frames_len <= config.max_texture_width {
@@ -138,11 +137,13 @@ pub fn get_paged_spectrogram(
         let src_start_offset = start * num_bins;
         let src_end_offset = end * num_bins;
         sub_matrix.copy_from_slice(&stft.matrix[src_start_offset..src_end_offset]);
-        return StftResult {
-            matrix: sub_matrix,
-            num_frames: visible_frames_len,
-            num_bins,
-        };
+        let result = StftResult { matrix: sub_matrix, num_frames: visible_frames_len, num_bins };
+        eprintln!("[PROF] get_paged_spectrogram | mode=SLICE | in={}x{} out={}x{} | input_mb={:.2} output_mb={:.2} | elapsed={}µs",
+            total_frames, num_bins, result.num_frames, num_bins,
+            (total_frames * num_bins * 4) as f64 / 1_048_576.0,
+            (result.num_frames * num_bins * 4) as f64 / 1_048_576.0,
+            t0.elapsed().as_micros());
+        return result;
     }
 
     let target_width = config.max_texture_width;
@@ -154,9 +155,7 @@ pub fn get_paged_spectrogram(
         let src_end_f = (start as f64 + (dest_f + 1) as f64 * step).ceil() as usize;
         let src_end_f = src_end_f.min(end);
         let count = (src_end_f - src_start_f).max(1) as f32;
-
         let dest_offset = dest_f * num_bins;
-
         for k in 0..num_bins {
             let mut sum_sq = 0.0;
             for src_f in src_start_f..src_end_f {
@@ -167,11 +166,13 @@ pub fn get_paged_spectrogram(
         }
     }
 
-    StftResult {
-        matrix: downsampled_matrix,
-        num_frames: target_width,
-        num_bins,
-    }
+    let result = StftResult { matrix: downsampled_matrix, num_frames: target_width, num_bins };
+    eprintln!("[PROF] get_paged_spectrogram | mode=DOWNSAMPLE | in={}x{} out={}x{} step={:.3} | input_mb={:.2} output_mb={:.2} | elapsed={}µs",
+        total_frames, num_bins, result.num_frames, num_bins, step,
+        (total_frames * num_bins * 4) as f64 / 1_048_576.0,
+        (result.num_frames * num_bins * 4) as f64 / 1_048_576.0,
+        t0.elapsed().as_micros());
+    result
 }
 
 
@@ -185,6 +186,7 @@ pub fn update_stft_range_multichannel(
     hop_size: usize,
     window_type: &str,
 ) -> Result<(), String> {
+    let t0 = std::time::Instant::now();
     let n_channels = channels as usize;
     let num_bins = fft_size / 2;
     let total_frames = stft.num_frames;
@@ -274,6 +276,10 @@ pub fn update_stft_range_multichannel(
         }
     }
 
+    let affected_frames = f_end.saturating_sub(f_start) + 1;
+    eprintln!("[PROF] update_stft_range_multichannel | channels={} | sample_range=[{}-{}] | frames_affected={} | total_frames={} | bins={} | elapsed={}µs",
+        n_channels, start_sample, end_sample, affected_frames, stft.num_frames, num_bins,
+        t0.elapsed().as_micros());
     Ok(())
 }
 

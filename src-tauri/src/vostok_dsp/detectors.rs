@@ -663,10 +663,12 @@ pub fn detectar_hum(
         }
     }
 
-    // Un pico se define en relación con el espectro circundante.
-    // El umbral se reduce a un rango de 1.2x a 2.0x. Incluso con baja sensibilidad (0%),
-    // el Hum continuo se detecta gracias a la protección del filtro de duración (1.5 segundos).
-    let peak_threshold = 2.0 - (sensitivity * 0.8);
+    // [EXP-HUM-02] peak_threshold elevado de [1.2x–2.0x] a [3.0x–6.0x].
+    // Justificación: Un hum electromagnético real (sinusoide pura, Hann) supera en
+    // 8x–20x a sus vecinos espectrales. El contenido musical en bajos raramente supera
+    // 3x–4x. El umbral anterior (mín 1.2x = +1.6 dB) era indistinguible del ruido musical.
+    // Nuevo rango: 3.0x (+9.5 dB) a 6.0x (+15.6 dB) sobre vecinos.
+    let peak_threshold = 6.0 - (sensitivity * 3.0);
 
     let mut frame_hum_freq = vec![None; num_frames];
 
@@ -697,7 +699,7 @@ pub fn detectar_hum(
     let mut inside_hum = false;
     let mut start_frame = 0;
     let mut gap_counter = 0;
-    let gap_tolerance = 120; // Tolerar hasta ~2.5 segundos de silencio/enmascaramiento de Hum para consolidar
+    let gap_tolerance = 15; // [EXP-HUM-01] Reducido de 120 a 15 frames (~348ms). Hipótesis: gap_tolerance excesivo era la causa principal de eventos inflados hasta la duración total del archivo.
     let mut current_freq = None;
 
     for t in 0..num_frames {

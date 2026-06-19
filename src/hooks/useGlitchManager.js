@@ -310,12 +310,23 @@ export default function useGlitchManager(session, updateSession, showToast, stop
     if (status !== 'ready') return;
     if (stopPlaybackState) stopPlaybackState();
     try {
+      const t_ipc_start = performance.now();
       const response = await invoke('deshacer_accion', { glitches });
+      const t_ipc_end = performance.now();
+      console.log(`[PROF][UNDO] IPC_roundtrip | elapsed=${(t_ipc_end - t_ipc_start).toFixed(2)}ms | payload_bytes=${response.spectrogram?.length ?? 0}`);
+
+      const t_parse = performance.now();
       const parsed = parseBinarySpectrogram(response.spectrogram);
+      console.log(`[PROF][UNDO] parse_binary | elapsed=${(performance.now() - t_parse).toFixed(2)}ms | frames=${parsed?.frames} bins=${parsed?.bins}`);
+
+      const t_store = performance.now();
       if (parsed) {
         SPECTROGRAM_STORAGE['hum'] = parsed.matrix;
         SPECTROGRAM_STORAGE['full'] = parsed.matrix;
       }
+      console.log(`[PROF][UNDO] storage_write | elapsed=${(performance.now() - t_store).toFixed(2)}ms`);
+
+      const t_session = performance.now();
       updateSession({
         glitches: response.glitches,
         matrixVersion: matrixVersion + 1,
@@ -323,6 +334,9 @@ export default function useGlitchManager(session, updateSession, showToast, stop
         waveformEnvelope: response.waveform_envelope,
         ...(parsed ? { stftFrames: parsed.frames, stftBins: parsed.bins } : {})
       });
+      console.log(`[PROF][UNDO] updateSession_trigger | elapsed=${(performance.now() - t_session).toFixed(2)}ms`);
+      console.log(`[PROF][UNDO] TOTAL_FRONTEND | elapsed=${(performance.now() - t_ipc_start).toFixed(2)}ms`);
+
       setSelectedGlitch(null);
       showToast('Deshacer: Reparación restaurada al estado original');
     } catch (err) {
@@ -338,12 +352,23 @@ export default function useGlitchManager(session, updateSession, showToast, stop
     if (status !== 'ready') return;
     if (stopPlaybackState) stopPlaybackState();
     try {
+      const t_ipc_start = performance.now();
       const response = await invoke('rehacer_accion', { glitches });
+      const t_ipc_end = performance.now();
+      console.log(`[PROF][REDO] IPC_roundtrip | elapsed=${(t_ipc_end - t_ipc_start).toFixed(2)}ms | payload_bytes=${response.spectrogram?.length ?? 0}`);
+
+      const t_parse = performance.now();
       const parsed = parseBinarySpectrogram(response.spectrogram);
+      console.log(`[PROF][REDO] parse_binary | elapsed=${(performance.now() - t_parse).toFixed(2)}ms | frames=${parsed?.frames} bins=${parsed?.bins}`);
+
+      const t_store = performance.now();
       if (parsed) {
         SPECTROGRAM_STORAGE['hum'] = parsed.matrix;
         SPECTROGRAM_STORAGE['full'] = parsed.matrix;
       }
+      console.log(`[PROF][REDO] storage_write | elapsed=${(performance.now() - t_store).toFixed(2)}ms`);
+
+      const t_session = performance.now();
       updateSession({
         glitches: response.glitches,
         matrixVersion: matrixVersion + 1,
@@ -351,6 +376,9 @@ export default function useGlitchManager(session, updateSession, showToast, stop
         waveformEnvelope: response.waveform_envelope,
         ...(parsed ? { stftFrames: parsed.frames, stftBins: parsed.bins } : {})
       });
+      console.log(`[PROF][REDO] updateSession_trigger | elapsed=${(performance.now() - t_session).toFixed(2)}ms`);
+      console.log(`[PROF][REDO] TOTAL_FRONTEND | elapsed=${(performance.now() - t_ipc_start).toFixed(2)}ms`);
+
       setSelectedGlitch(null);
       showToast('Rehacer: Reparación aplicada nuevamente');
     } catch (err) {
