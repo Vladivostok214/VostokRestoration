@@ -9,19 +9,32 @@ P1.5 → P1.10E
 | Detector | Estado | Precisión | Recall | Prioridad |
 | -------- | ------ | --------- | ------ | --------- |
 | Click    | 🟢     | 100%      | 83.3%  | ALTA      |
-| Pop      | 🟡     | 83.3%     | 83.3%  | MEDIA     |
+| Pop      | 🟢     | 83.3%     | 83.3%  | BAJA      |
 | Hum      | 🟢     | 100%      | 100%   | BAJA      |
 | Hiss     | 🟢     | 100%      | 100%   | BAJA      |
-| Dropout  | 🟡     | 66.7%     | 100%   | ALTA     |
+| Dropout  | 🟢     | 100%      | 100%   | BAJA      |
 | Clipping | 🟢     | 100%      | 100%   | BAJA      |
 
 
 ### Métricas Globales Actuales
 
+Precision: 100.00%
+Recall: 86.11%
+F1 Score: 92.54%
+---
+
+### Último Benchmark Oficial
+
+Fecha: 2026-06-20
+
 Precision: 96.88%
 Recall: 86.11%
-F1 Score: 91.18%
----
+F1: 91.18%
+
+TP: 31
+MC: 1
+FN: 4
+FP: 1
 
 # Detector: Click
 
@@ -53,7 +66,7 @@ Conclusiones confirmadas:
 
 Hipótesis abiertas:
 
-* Los 4 FN restantes están documentados (1 falla de ratio_next, 2 por Sibilancia Estricta).
+* Los 4 FN restantes están caracterizados y no son prioridad actual.
 
 Próximo paso:
 
@@ -65,9 +78,20 @@ Próximo paso:
 
 Estado: 🟢 Estable
 
+Métricas:
 Precision: 83.3%
 Recall: 83.3%
 F1: 83.3%
+
+Documentación asociada:
+
+* P1.5 REPORTE TÉCNICO IMPLEMENTACIÓN
+* P1.5 RESULTADOS IMPLEMENTACIÓN
+* P1.10A REPORTE TÉCNICO AUDITORÍA PRECISIÓN POPS
+* P1.10B REPORTE TÉCNICO DISEÑO EXPERIMENTAL
+* P1.10C REPORTE TÉCNICO IMPLEMENTACIÓN
+* P1.10D REPORTE FORENSE CASOS RESIDUALES
+* P1.10E REPORTE TÉCNICO IMPLEMENTACIÓN
 
 Conclusiones confirmadas:
 
@@ -136,24 +160,28 @@ Hipótesis abiertas:
 
 # Detector: Dropout
 
-Estado: 🟡 Mejorable
+Estado: 🟢 Producción (Estable)
 
 Métricas:
 
-* Precision: 66.7%
+* Precision: 100%
 * Recall: 100%
+* F1 Score: 100%
 
 Documentación asociada:
 
 * AUDITORIA_GLOBAL_DETECTORES.md
+* P1.11A REPORTE DE AUDITORÍA EOF vs DROPOUT.md
+* P1.11B REPORTE DE IMPLEMENTACIÓN EOF GUARD BAND.md
 
 Conclusiones confirmadas:
 
 * Detecta correctamente los dropouts reales.
+* Falso positivo persistente en ~101.647s (VOS-33) corregido exitosamente mediante la implementación de una banda de resguardo (EOF Guard Band) de 150 ms en `detectar_dropouts()` (P1.11B).
 
 Hipótesis abiertas:
 
-* Investigar FP persistente en ~101.647s.
+* Ninguna.
 
 ---
 
@@ -232,11 +260,10 @@ Casos abiertos:
 
 # Línea de Investigación Activa
 
-LAB-DROPOUT-003
+Ninguna (LAB-DROPOUT-003 completada con éxito).
 
 Objetivo:
-Determinar la causa raíz del falso positivo persistente
-en ~101.647s y mejorar la precisión del detector Dropout.
+Monitorear las métricas de producción y planificar la próxima iteración del motor de restauración.
 
 
 # DSP Maturity Snapshot
@@ -257,12 +284,31 @@ Pop:
 🟢 Estable (1 error de clasificación residual)
 
 Dropout:
-🟡 Requiere refinamiento
+🟢 Producción
 
 Estado global del motor DSP:
 🟢 Estabilizado
 
-Último benchmark:
-Precision = 96.88%
-Recall = 86.11%
-F1 = 91.18%
+
+# Áreas Cerradas (No Reabrir Sin Evidencia Nueva)
+
+Hum
+- Cerrado
+
+Hiss
+- Cerrado
+
+Clipping
+- Cerrado
+
+Click -> Distortion
+- Cerrado
+
+Fragmentación de Clipping
+- Cerrado
+
+Distortion deshabilitado en UI
+- Cerrado
+
+Clicks sintéticos tipo Flat-Top
+- Cerrado

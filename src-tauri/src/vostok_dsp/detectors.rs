@@ -796,7 +796,11 @@ pub fn detectar_dropouts(
         let end_idx = n_samples;
         let duration_samples = end_idx - start_idx;
         let duration_ms = (duration_samples as f32 * 1000.0) / sample_rate as f32;
-        if duration_ms >= 4.0 && duration_ms <= 150.0 {
+        
+        let guard_band_samples = (sample_rate as f32 * 0.150).round() as usize;
+        let samples_to_eof = n_samples - start_idx;
+
+        if samples_to_eof > guard_band_samples && duration_ms >= 4.0 && duration_ms <= 150.0 {
             let context_start = start_idx.saturating_sub(context_len);
             let context_end = start_idx;
             let context_samples = context_end - context_start;
