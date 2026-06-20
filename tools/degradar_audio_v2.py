@@ -101,18 +101,15 @@ def inyectar_artefactos(audio, sample_rate, modo):
     # CLICKS DIGITALES
     for i in range(CANTIDAD_CLICKS):
         inicio = random.randint(1000, total_muestras - 1000)
-        longitud = random.randint(1, MAX_SAMPLES_DANO)
+        longitud = 1  # [P1.8B] Click real (1 muestra) para no imitar flat-top clipping
         val = random.choice([-1.0, 1.0])
 
         if not es_stereo:
             mag = float(abs(val - audio_mod[inicio]))
+            audio_mod[inicio] = val
         else:
             mag = float(abs(val - audio_mod[inicio, 0]))
-
-        if not es_stereo:
-            audio_mod[inicio:inicio + longitud] = val
-        else:
-            audio_mod[inicio:inicio + longitud, :] = val
+            audio_mod[inicio, :] = val
 
         gt_events.append((inicio, inicio / sample_rate, "click", mag))
 
@@ -278,8 +275,9 @@ def inyectar_real_world(audio, sample_rate):
         cluster_center_s = random.uniform(0.5, duracion_s - 0.5)
         cluster_center   = int(cluster_center_s * sample_rate)
 
-        # Número de clicks dentro de este cluster (2–5)
-        clicks_en_cluster = random.randint(2, min(5, total_clicks - clicks_inyectados))
+        # Número de clicks dentro de este cluster (2-5)
+        clicks_restantes = total_clicks - clicks_inyectados
+        clicks_en_cluster = random.randint(min(2, clicks_restantes), min(5, clicks_restantes))
 
         # Ventana temporal del cluster: ±200 ms alrededor del centro
         ventana_samples = int(0.2 * sample_rate)
@@ -290,8 +288,8 @@ def inyectar_real_world(audio, sample_rate):
             inicio = cluster_center + offset
             inicio = max(100, min(inicio, total_muestras - 100))
 
-            # Longitud del click: 1–3 samples (estilo vinilo)
-            longitud = random.randint(1, 3)
+            # [P1.8B] Longitud del click: estrictamente 1 sample para evitar falso clipping (flat-top)
+            longitud = 1
             fin      = min(inicio + longitud, total_muestras)
 
             # Polaridad aleatoria
@@ -303,11 +301,11 @@ def inyectar_real_world(audio, sample_rate):
             else:
                 mag = float(abs(val - audio_mod[inicio, 0]))
 
-            # Aplicar click
+            # Aplicar click instantáneo
             if not es_stereo:
-                audio_mod[inicio:fin] = val
+                audio_mod[inicio] = val
             else:
-                audio_mod[inicio:fin, :] = val
+                audio_mod[inicio, :] = val
 
             t_click = inicio / sample_rate
 
@@ -404,39 +402,75 @@ def inyectar_real_world(audio, sample_rate):
     # ══════════════════════════════════════════════════════════════════════
     # 4. CLIPPING LEVE (0–2 segmentos, 100–300 ms)
     # ══════════════════════════════════════════════════════════════════════
-    total_clips = random.randint(0, 2)
+    total_clips = random.randint(1, 2)
 
     for _ in range(total_clips):
         inicio   = random.randint(int(0.5 * sample_rate), total_muestras - int(0.5 * sample_rate))
         dur_clip = int(sample_rate * random.uniform(0.10, 0.30))  # 100–300 ms
         fin      = min(inicio + dur_clip, total_muestras)
+        n_seg    = fin - inicio
 
-        if not es_stereo:
-            audio_mod[inicio:fin] *= 2.5
-        else:
-            audio_mod[inicio:fin, :] *= 2.5
+        if n_seg < 100:
+            continue
 
-        # Umbral de clipping más conservador: refleja saturación de cinta/ADC vintage
+        segmento = audio_mod[inicio:fin].copy()
+        
+        # 1. Medir peak local
+        peak_before = float(np.max(np.abs(segmento)))
+        if peak_before < 1e-4:
+            continue # Demasiado silencio para clipear de forma natural sin añadir ruido de fondo
+            
         clip_threshold = random.uniform(0.75, 0.92)
-
+        
+        # 2. Calcular ganancia necesaria para asegurar saturación fuerte (ej: sobrepasar el umbral en un 80%)
+        target_peak = clip_threshold * 1.8
+        gain_needed = target_peak / peak_before
+        
+        # 3. Crear envolvente de ganancia para evitar clicks artificiales (fade in/out de 5ms)
+        fade_samples = min(int(sample_rate * 0.005), n_seg // 4)
+        envolvente = np.ones(n_seg, dtype=np.float32) * gain_needed
+        
+        if fade_samples > 0:
+            # Transición suave desde ganancia original 1.0 hasta gain_needed (y viceversa)
+            rampa_in = np.linspace(1.0, gain_needed, fade_samples, dtype=np.float32)
+            rampa_out = np.linspace(gain_needed, 1.0, fade_samples, dtype=np.float32)
+            envolvente[:fade_samples] = rampa_in
+            envolvente[-fade_samples:] = rampa_out
+            
         if not es_stereo:
-            audio_mod[inicio:fin] = np.clip(audio_mod[inicio:fin], -clip_threshold, clip_threshold)
+            segmento_amplificado = segmento * envolvente
+            segmento_clipeado = np.clip(segmento_amplificado, -clip_threshold, clip_threshold)
+            samples_clipped = np.sum(np.abs(segmento_clipeado) >= clip_threshold - 1e-5)
+            peak_after = float(np.max(np.abs(segmento_clipeado)))
         else:
-            audio_mod[inicio:fin, :] = np.clip(audio_mod[inicio:fin, :], -clip_threshold, clip_threshold)
+            envolvente_2d = envolvente[:, np.newaxis]
+            segmento_amplificado = segmento * envolvente_2d
+            segmento_clipeado = np.clip(segmento_amplificado, -clip_threshold, clip_threshold)
+            samples_clipped = np.sum(np.abs(segmento_clipeado[:, 0]) >= clip_threshold - 1e-5)
+            peak_after = float(np.max(np.abs(segmento_clipeado[:, 0])))
+            
+        # 4. Verificar existencia real de clipping (flat tops verificables) antes de registrar GT
+        if samples_clipped > 5:
+            if not es_stereo:
+                audio_mod[inicio:fin] = segmento_clipeado
+            else:
+                audio_mod[inicio:fin, :] = segmento_clipeado
+                
+            t_inicio_s = inicio / sample_rate
+            t_fin_s    = fin    / sample_rate
+            dur_ms     = (fin - inicio) / sample_rate * 1000.0
 
-        t_inicio_s = inicio / sample_rate
-        t_fin_s    = fin    / sample_rate
-        dur_ms     = (fin - inicio) / sample_rate * 1000.0
+            gt_events.append({
+                "StartTime":    round(t_inicio_s, 6),
+                "EndTime":      round(t_fin_s,    6),
+                "ArtifactType": "clipping",
+                "Magnitude":    round(clip_threshold, 4),
+                "Metadata":     f"dur_ms={dur_ms:.1f},threshold={clip_threshold:.2f}"
+            })
 
-        gt_events.append({
-            "StartTime":    round(t_inicio_s, 6),
-            "EndTime":      round(t_fin_s,    6),
-            "ArtifactType": "clipping",
-            "Magnitude":    round(clip_threshold, 4),
-            "Metadata":     f"dur_ms={dur_ms:.1f},threshold={clip_threshold:.2f}"
-        })
-
-        print(f"  [!] CLIPPING en {t_inicio_s:.2f}s | Techo: {clip_threshold:.2f}")
+            print(f"  [!] CLIPPING en {t_inicio_s:.2f}s | Techo: {clip_threshold:.2f} | Peak In: {peak_before:.3f} | Gain: {gain_needed:.2f}x | Samples Clipped: {samples_clipped}")
+        else:
+            print(f"  [!] Clipping fallido en {inicio/sample_rate:.2f}s (No alcanzó flat-tops)")
 
     # ══════════════════════════════════════════════════════════════════════
     # 5. HUM SEGMENTADO (1–4 segmentos, 2–15 s, 50 Hz + armónicos)
@@ -566,16 +600,16 @@ def inyectar_real_world(audio, sample_rate):
         val_extra = random.choice([-1.0, 1.0])
 
         if not es_stereo:
-            audio_mod[idx_extra:idx_extra + 2] = val_extra
+            audio_mod[idx_extra] = val_extra
         else:
-            audio_mod[idx_extra:idx_extra + 2, :] = val_extra
+            audio_mod[idx_extra, :] = val_extra
 
         gt_events.append({
             "StartTime":    round(t_extra, 6),
             "EndTime":      round(t_extra, 6),
             "ArtifactType": "click",
             "Magnitude":    round(float(abs(val_extra)), 4),
-            "Metadata":     "length=2,overlap=hum"
+            "Metadata":     "length=1,overlap=hum"
         })
         print("  🔀 Superposición forzada: click dentro de segmento HUM")
 

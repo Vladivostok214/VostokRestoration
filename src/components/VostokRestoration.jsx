@@ -1277,6 +1277,11 @@ export default function VostokRestoration({ session, updateSession, onReset }) {
                     <input type="checkbox" checked={scanParams.hiss} onChange={e => setScanParams(p => ({ ...p, hiss: e.target.checked }))} style={{ accentColor: '#39FF14', cursor: 'pointer' }} />
                     <span>Background Hiss</span>
                   </label>
+                  
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', cursor: 'pointer', userSelect: 'none' }}>
+                    <input type="checkbox" checked={scanParams.distortion} onChange={e => setScanParams(p => ({ ...p, distortion: e.target.checked }))} style={{ accentColor: '#39FF14', cursor: 'pointer' }} />
+                    <span>Clipping / Distortion</span>
+                  </label>
                 </div>
 
                 {/* BOTÓN ÚNICO DE ANÁLISIS */}

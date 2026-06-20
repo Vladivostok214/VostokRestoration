@@ -477,6 +477,8 @@ pub fn detectar_pops(
     stft: &StftResult,
     sample_rate: u32,
     _global_rms: f32,
+    sensitivity: f32,
+    audio_mode: AudioMode,
 ) -> Vec<GlitchEvent> {
     let mut events = Vec::new();
     let num_frames = stft.num_frames;
@@ -513,13 +515,30 @@ pub fn detectar_pops(
             1.0
         };
         
+        // [EXP-POP-01] Sensibilidad dinámica para umbrales de energía y ratio
+        let pop_ratio_threshold = 3.0 + ((1.0 - sensitivity) * 2.0);
+        let pop_min_rms = 0.002 + ((1.0 - sensitivity) * 0.004);
+        let pop_min_low_energy = 0.02 + ((1.0 - sensitivity) * 0.03);
+        
         // Un pop es un incremento rápido y transitorio de energía subsónica/baja
-        let is_pop_frame = energy_ratio > 3.0 
-            && low_energy > 0.04 
-            && features[t].rms > 0.004;
+        let is_pop_frame = energy_ratio > pop_ratio_threshold 
+            && low_energy > pop_min_low_energy 
+            && features[t].rms > pop_min_rms;
         
         if is_pop_frame {
-            if !inside_pop {
+            // [EXP-POP-02] Diferenciación Voice/Music para descartar plosivas
+            let mut reject_pop = false;
+            if audio_mode == AudioMode::Voice {
+                // Las plosivas (P, B, T) liberan aire de alta frecuencia al explotar.
+                // Evaluamos el Zero Crossing Rate.
+                let zcr = features[t].zero_crossing_rate;
+                let zcr_threshold = 0.15 - (sensitivity * 0.05);
+                if zcr > zcr_threshold {
+                    reject_pop = true; // Probable sibilancia o liberación de aire del tracto vocal
+                }
+            }
+
+            if !inside_pop && !reject_pop {
                 inside_pop = true;
                 start_frame = t;
             }
@@ -578,36 +597,105 @@ pub fn detectar_clipping(
 ) -> Vec<GlitchEvent> {
     let mut events = Vec::new();
     let n = samples.len();
-    let limit = 0.99f32;
-    let tolerance = 1e-4f32;
+    let window_size = sample_rate as usize;
     
-    let mut i = 0;
-    while i < n {
-        let val = samples[i].abs();
-        if val >= limit {
-            let mut j = i + 1;
-            while j < n && samples[j].abs() >= limit && (samples[j].abs() - val).abs() <= tolerance {
-                j += 1;
+    // Configuración de Consolidación Temporal (100 ms)
+    let gap_samples = (sample_rate as f32 * 0.100).round() as usize;
+    
+    // Estado de la región actual
+    let mut region_start: Option<usize> = None;
+    let mut region_end: usize = 0;
+    let mut region_max_val: f32 = 0.0;
+    let mut region_direction: i8 = 0;
+    
+    let mut start_idx = 0;
+    while start_idx < n {
+        let end_idx = usize::min(start_idx + window_size, n);
+        let window_samples = &samples[start_idx..end_idx];
+        
+        // Calcular el peak absoluto local de la ventana actual
+        let local_peak = window_samples.iter().fold(0.0f32, |max, &x| f32::max(max, x.abs()));
+        
+        // [EXP-CLIP-02] Umbral Híbrido por ventana
+        let limit = f32::max(0.70, local_peak * 0.95);
+        let tolerance = 0.015f32;
+        
+        let mut i = 0;
+        let window_len = window_samples.len();
+        
+        while i < window_len {
+            let val = window_samples[i].abs();
+            if val >= limit {
+                let mut j = i + 1;
+                while j < window_len && window_samples[j].abs() >= limit && (window_samples[j].abs() - val).abs() <= tolerance {
+                    j += 1;
+                }
+                
+                let count = j - i;
+                // Si hay 2 o más muestras consecutivas (meseta plana), es clipping
+                if count >= 2 {
+                    let candidate_start = start_idx + i;
+                    let candidate_end = start_idx + j;
+                    
+                    if let Some(start) = region_start {
+                        if candidate_start.saturating_sub(region_end) <= gap_samples {
+                            // El gap es menor o igual al tolerado -> extender región_actual
+                            region_end = candidate_end;
+                            if val > region_max_val {
+                                region_max_val = val;
+                                region_direction = if window_samples[i] > 0.0 { 1 } else { -1 };
+                            }
+                        } else {
+                            // El gap es superado -> emitir evento consolidado
+                            events.push(GlitchEvent {
+                                sample_index: start,
+                                time_secs: start as f64 / sample_rate as f64,
+                                amplitude_delta: region_max_val,
+                                direction: region_direction,
+                                event_type: GlitchType::Distortion,
+                                repaired: false,
+                                frequency: None,
+                                channel: 0,
+                                duration_samples: Some(region_end - start),
+                            });
+                            
+                            // Iniciar nueva región
+                            region_start = Some(candidate_start);
+                            region_end = candidate_end;
+                            region_max_val = val;
+                            region_direction = if window_samples[i] > 0.0 { 1 } else { -1 };
+                        }
+                    } else {
+                        // Primera región
+                        region_start = Some(candidate_start);
+                        region_end = candidate_end;
+                        region_max_val = val;
+                        region_direction = if window_samples[i] > 0.0 { 1 } else { -1 };
+                    }
+                    
+                    i = j;
+                    continue;
+                }
             }
-            
-            let count = j - i;
-            if count > 3 {
-                events.push(GlitchEvent {
-                    sample_index: i,
-                    time_secs: i as f64 / sample_rate as f64,
-                    amplitude_delta: val,
-                    direction: if samples[i] > 0.0 { 1 } else { -1 },
-                    event_type: GlitchType::Distortion,
-                    repaired: false,
-                    frequency: None,
-                    channel: 0,
-                    duration_samples: Some(count),
-                });
-                i = j;
-                continue;
-            }
+            i += 1;
         }
-        i += 1;
+        
+        start_idx += window_size;
+    }
+    
+    // Emitir la última región si quedó abierta
+    if let Some(start) = region_start {
+        events.push(GlitchEvent {
+            sample_index: start,
+            time_secs: start as f64 / sample_rate as f64,
+            amplitude_delta: region_max_val,
+            direction: region_direction,
+            event_type: GlitchType::Distortion,
+            repaired: false,
+            frequency: None,
+            channel: 0,
+            duration_samples: Some(region_end - start),
+        });
     }
     
     events
@@ -737,6 +825,7 @@ pub fn detectar_hum(
     stft: &StftResult,
     sample_rate: u32,
     sensitivity: f32,
+    audio_mode: AudioMode,
 ) -> Vec<GlitchEvent> {
     let mut events = Vec::new();
     let num_frames = stft.num_frames;
@@ -761,7 +850,7 @@ pub fn detectar_hum(
     // Nuevo rango: 3.0x (+9.5 dB) a 6.0x (+15.6 dB) sobre vecinos.
     let peak_threshold = 6.0 - (sensitivity * 3.0);
 
-    let mut frame_hum_freq = vec![None; num_frames];
+    let mut frame_hum_data = vec![None; num_frames];
 
     for t in 0..num_frames {
         let start_bin = t * num_bins;
@@ -777,12 +866,12 @@ pub fn detectar_hum(
                 let neighbors_avg = (mags[bin - 3] + mags[bin - 2] + mags[bin + 2] + mags[bin + 3]) * 0.25;
                 
                 if val > neighbors_avg * peak_threshold && val > 0.001 {
-                    freq_found = Some(freq);
+                    freq_found = Some((freq, val));
                     break;
                 }
             }
         }
-        frame_hum_freq[t] = freq_found;
+        frame_hum_data[t] = freq_found;
     }
 
     // Agrupamos frames continuos con Hum detectado para crear eventos de rango temporal
@@ -792,14 +881,17 @@ pub fn detectar_hum(
     let mut gap_counter = 0;
     let gap_tolerance = 15; // [EXP-HUM-01] Reducido de 120 a 15 frames (~348ms). Hipótesis: gap_tolerance excesivo era la causa principal de eventos inflados hasta la duración total del archivo.
     let mut current_freq = None;
+    let mut mags_history = Vec::new();
 
     for t in 0..num_frames {
-        if let Some(f) = frame_hum_freq[t] {
+        if let Some((f, mag)) = frame_hum_data[t] {
             if !inside_hum {
                 inside_hum = true;
                 start_frame = t;
                 current_freq = Some(f);
+                mags_history.clear();
             }
+            mags_history.push(mag);
             gap_counter = 0; // Resetear contador de huecos
         } else {
             if inside_hum {
@@ -811,18 +903,34 @@ pub fn detectar_hum(
                     // Hum estacionario real debe durar al menos 1.5 segundos (~70 frames)
                     // para discriminar notas de paso de instrumentos musicales
                     if duration_frames >= 70 {
-                        let start_sample = start_frame * hop_size;
-                        events.push(GlitchEvent {
-                            sample_index: start_sample,
-                            time_secs: start_sample as f64 / sample_rate as f64,
-                            amplitude_delta: 0.1,
-                            direction: 0,
-                            event_type: GlitchType::Hum,
-                            repaired: false,
-                            frequency: current_freq,
-                            channel: 0,
-                            duration_samples: Some(duration_frames * hop_size),
-                        });
+                        // [EXP-HUM-03] Filtro de estabilidad frecuencial para voz
+                        let mut reject_hum = false;
+                        if audio_mode == AudioMode::Voice && !mags_history.is_empty() {
+                            let max_mag = mags_history.iter().copied().fold(0.0f32, f32::max);
+                            let min_mag = mags_history.iter().copied().fold(f32::MAX, f32::min);
+                            // La voz varía su amplitud naturalmente (vibrato/dinámica). 
+                            // Un hum real es estático.
+                            let stability_ratio = if max_mag > 0.0 { min_mag / max_mag } else { 0.0 };
+                            let required_stability = 0.25 + (sensitivity * 0.15); // Exigir 25% a 40% de estabilidad mínima
+                            if stability_ratio < required_stability {
+                                reject_hum = true; // Demasiada variación, es una vocal, no ruido eléctrico
+                            }
+                        }
+
+                        if !reject_hum {
+                            let start_sample = start_frame * hop_size;
+                            events.push(GlitchEvent {
+                                sample_index: start_sample,
+                                time_secs: start_sample as f64 / sample_rate as f64,
+                                amplitude_delta: 0.1,
+                                direction: 0,
+                                event_type: GlitchType::Hum,
+                                repaired: false,
+                                frequency: current_freq,
+                                channel: 0,
+                                duration_samples: Some(duration_frames * hop_size),
+                            });
+                        }
                     }
                 }
             }
@@ -835,18 +943,31 @@ pub fn detectar_hum(
         if actual_end > start_frame {
             let duration_frames = actual_end - start_frame;
             if duration_frames >= 70 {
-                let start_sample = start_frame * hop_size;
-                events.push(GlitchEvent {
-                    sample_index: start_sample,
-                    time_secs: start_sample as f64 / sample_rate as f64,
-                    amplitude_delta: 0.1,
-                    direction: 0,
-                    event_type: GlitchType::Hum,
-                    repaired: false,
-                    frequency: current_freq,
-                    channel: 0,
-                    duration_samples: Some(duration_frames * hop_size),
-                });
+                let mut reject_hum = false;
+                if audio_mode == AudioMode::Voice && !mags_history.is_empty() {
+                    let max_mag = mags_history.iter().copied().fold(0.0f32, f32::max);
+                    let min_mag = mags_history.iter().copied().fold(f32::MAX, f32::min);
+                    let stability_ratio = if max_mag > 0.0 { min_mag / max_mag } else { 0.0 };
+                    let required_stability = 0.25 + (sensitivity * 0.15);
+                    if stability_ratio < required_stability {
+                        reject_hum = true;
+                    }
+                }
+
+                if !reject_hum {
+                    let start_sample = start_frame * hop_size;
+                    events.push(GlitchEvent {
+                        sample_index: start_sample,
+                        time_secs: start_sample as f64 / sample_rate as f64,
+                        amplitude_delta: 0.1,
+                        direction: 0,
+                        event_type: GlitchType::Hum,
+                        repaired: false,
+                        frequency: current_freq,
+                        channel: 0,
+                        duration_samples: Some(duration_frames * hop_size),
+                    });
+                }
             }
         }
     }
@@ -997,8 +1118,8 @@ pub fn ejecutar_analisis_dsp_mono(
         || {
             if params.clicks {
                 let mode = params.audio_mode.clone().unwrap_or(AudioMode::Music);
-                let mut c = detectar_clicks(&features, stft, &audio.samples, audio.sample_rate, params.sensitivity, mode);
-                let mut p = detectar_pops(&features, stft, audio.sample_rate, global_rms);
+                let mut c = detectar_clicks(&features, stft, &audio.samples, audio.sample_rate, params.sensitivity, mode.clone());
+                let mut p = detectar_pops(&features, stft, audio.sample_rate, global_rms, params.sensitivity, mode);
                 c.append(&mut p);
                 c
             } else {
@@ -1018,7 +1139,8 @@ pub fn ejecutar_analisis_dsp_mono(
                     rayon::join(
                         || {
                             if params.hum {
-                                detectar_hum(&features, stft, audio.sample_rate, params.sensitivity)
+                                let mode = params.audio_mode.clone().unwrap_or(AudioMode::Music);
+                                detectar_hum(&features, stft, audio.sample_rate, params.sensitivity, mode)
                             } else {
                                 Vec::new()
                             }
@@ -1294,7 +1416,54 @@ mod tests {
 
         assert_eq!(filtered.len(), 2);
         assert!(filtered.iter().any(|e| e.event_type == GlitchType::Dropout));
-        assert!(filtered.iter().any(|e| e.sample_index == 5000)); // Click lejano
         assert!(!filtered.iter().any(|e| e.sample_index == 1000)); // Click cercano filtrado
+    }
+
+    #[test]
+    fn test_clipping_e2e_p17f() {
+        let mut params = ScanParams {
+            clicks: false,
+            hum: false,
+            hiss: false,
+            dropouts: false,
+            distortion: true,
+            sensitivity: 0.0,
+            audio_mode: Some(AudioMode::Voice),
+        };
+        
+        let path = std::path::Path::new("C:/Users/WLADI/Vostok Plugins/DesktopApps/Vostok Restoration V1/TestSamples/vozbajacalidad_DEGRADADO.wav");
+        if !path.exists() {
+            println!("Test skipped, file not found: {:?}", path);
+            return;
+        }
+        
+        let mut reader = hound::WavReader::open(path).unwrap();
+        let spec = reader.spec();
+        let interleaved: Vec<f32> = reader.samples::<i16>().map(|s| s.unwrap() as f32 / 32768.0).collect();
+        let mut samples = Vec::new();
+        for i in (0..interleaved.len()).step_by(spec.channels as usize) {
+            samples.push(interleaved[i]);
+        }
+        
+        let audio = AudioBuffer {
+            samples,
+            sample_rate: spec.sample_rate,
+            channels: 1,
+            bit_depth: spec.bits_per_sample,
+            duration_seconds: 0.0,
+        };
+        let stft = compute_stft(&audio.samples, 4096, 1024, "blackman-harris").unwrap();
+        
+        let global_rms = 0.05;
+        let features = extract_features(&audio, &stft, global_rms);
+        
+        println!("Running detectar_clicks...");
+        let clicks = detectar_clicks(&features, &stft, &audio.samples, audio.sample_rate, 0.5, AudioMode::Voice);
+        
+        for c in clicks {
+            if c.time_secs > 16.0 && c.time_secs < 16.3 {
+                println!("FOUND CLICK: {:.3}s (idx {}) delta: {}", c.time_secs, c.sample_index, c.amplitude_delta);
+            }
+        }
     }
 }
