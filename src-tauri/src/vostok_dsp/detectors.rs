@@ -1225,6 +1225,7 @@ pub fn consolidar_y_correlacionar_contextualmente(
 
     // Ventana de tolerancia al flanco de un dropout (2048 muestras es aprox 46ms a 44.1kHz)
     let margin = 2048;
+    let clipping_margin = 4096; // 92ms para absorber precursores de saturación masiva
 
     events.retain(|event| {
         if event.event_type == GlitchType::Click || event.event_type == GlitchType::Pop {
@@ -1246,7 +1247,7 @@ pub fn consolidar_y_correlacionar_contextualmente(
             // Regla B: Eliminar clicks/pops que coinciden en el interior de una zona de Distorsión (clipping)
             // porque el evento principal es la saturación digital.
             for &(dist_start, dist_end) in &distortions {
-                if idx >= dist_start && idx <= dist_end {
+                if idx >= dist_start.saturating_sub(clipping_margin) && idx <= dist_end + clipping_margin {
                     println!(
                         "[DSP CONTEXT] Filtrado Click/Pop redundante en muestra {} por solapamiento con Distorsión [{} - {}]",
                         idx, dist_start, dist_end
@@ -1291,7 +1292,23 @@ fn consolidar_canales_glitches(events: Vec<GlitchEvent>) -> Vec<GlitchEvent> {
                 continue;
             }
             let other = &events[j];
-            if other.event_type == current.event_type && other.channel != current.channel {
+            
+            let is_compatible_type = if (current.event_type == GlitchType::Click || current.event_type == GlitchType::Pop) 
+                && (other.event_type == GlitchType::Click || other.event_type == GlitchType::Pop) {
+                true
+            } else {
+                other.event_type == current.event_type
+            };
+
+            let is_cross_channel = other.channel != current.channel;
+            
+            // Intra-channel Click/Pop consolidation: mismo canal, casi mismo tiempo, Click vs Pop
+            let is_intra_channel_click_pop = other.channel == current.channel 
+                && is_compatible_type 
+                && current.event_type != other.event_type
+                && (other.time_secs - current.time_secs).abs() < 0.005;
+
+            if is_compatible_type && (is_cross_channel || is_intra_channel_click_pop) {
                 let is_match = match current.event_type {
                     GlitchType::Hum | GlitchType::Hiss | GlitchType::Dropout => {
                         let current_start = current.sample_index;
@@ -1325,7 +1342,15 @@ fn consolidar_canales_glitches(events: Vec<GlitchEvent>) -> Vec<GlitchEvent> {
             current.time_secs = current.time_secs.min(other.time_secs);
             current.duration_samples = Some(end_sample.saturating_sub(start_sample));
             current.amplitude_delta = current.amplitude_delta.max(other.amplitude_delta);
-            current.channel = 2; // Ambos
+            
+            if current.channel != other.channel {
+                current.channel = 2; // Ambos
+            }
+            
+            if current.event_type == GlitchType::Pop && other.event_type == GlitchType::Click {
+                current.event_type = GlitchType::Click;
+            }
+
             if current.frequency.is_none() {
                 current.frequency = other.frequency;
             }
@@ -1421,6 +1446,122 @@ mod tests {
         assert_eq!(filtered.len(), 2);
         assert!(filtered.iter().any(|e| e.event_type == GlitchType::Dropout));
         assert!(!filtered.iter().any(|e| e.sample_index == 1000)); // Click cercano filtrado
+    }
+
+    #[test]
+    fn test_vos_17_y_25_consolidation() {
+        // VOS-17: Pop preceding a Distortion by 48ms
+        let pop_vos17 = GlitchEvent {
+            sample_index: 1000,
+            time_secs: 30.883,
+            amplitude_delta: 0.5,
+            direction: 1,
+            event_type: GlitchType::Pop,
+            repaired: false,
+            frequency: None,
+            channel: 0,
+            duration_samples: Some(2),
+        };
+        let dist_vos17 = GlitchEvent {
+            sample_index: 1000 + 2000, // < 46ms later (margin is 2048)
+            time_secs: 30.931,
+            amplitude_delta: 0.8,
+            direction: -1,
+            event_type: GlitchType::Distortion,
+            repaired: false,
+            frequency: None,
+            channel: 0,
+            duration_samples: Some(900),
+        };
+        let events = vec![pop_vos17, dist_vos17];
+        let filtered = consolidar_y_correlacionar_contextualmente(events);
+        assert_eq!(filtered.len(), 1);
+        assert_eq!(filtered[0].event_type, GlitchType::Distortion);
+
+        // VOS-25: Click and Pop in different channels at same time
+        let click_l = GlitchEvent {
+            sample_index: 2000,
+            time_secs: 59.746,
+            amplitude_delta: 0.9,
+            direction: 1,
+            event_type: GlitchType::Click,
+            repaired: false,
+            frequency: None,
+            channel: 0,
+            duration_samples: Some(5),
+        };
+        let pop_r = GlitchEvent {
+            sample_index: 2000,
+            time_secs: 59.746,
+            amplitude_delta: 0.8,
+            direction: 1,
+            event_type: GlitchType::Pop,
+            repaired: false,
+            frequency: None,
+            channel: 1,
+            duration_samples: Some(6),
+        };
+        let events2 = vec![click_l, pop_r];
+        let consolidated = consolidar_canales_glitches(events2);
+        assert_eq!(consolidated.len(), 1);
+        assert_eq!(consolidated[0].event_type, GlitchType::Click);
+        assert_eq!(consolidated[0].channel, 2);
+    }
+
+    #[test]
+    fn test_forensic_gt032_and_vos17() {
+        let path = std::path::Path::new("C:/Users/WLADI/Vostok Plugins/DesktopApps/Vostok Restoration V1/TestSamples/vozbajacalidad_DEGRADADO.wav");
+        if !path.exists() {
+            return;
+        }
+        let mut reader = hound::WavReader::open(path).unwrap();
+        let spec = reader.spec();
+        let interleaved: Vec<f32> = reader.samples::<i16>().map(|s| s.unwrap() as f32 / 32768.0).collect();
+        
+        let mut samples_l = Vec::new();
+        let mut samples_r = Vec::new();
+        for i in (0..interleaved.len()).step_by(spec.channels as usize) {
+            samples_l.push(interleaved[i]);
+            if spec.channels > 1 {
+                samples_r.push(interleaved[i+1]);
+            }
+        }
+        
+        let stft_l = compute_stft(&samples_l, 4096, 1024, "blackman-harris").unwrap();
+        let stft_r = compute_stft(&samples_r, 4096, 1024, "blackman-harris").unwrap();
+        
+        let audio_l = AudioBuffer { samples: samples_l.clone(), sample_rate: spec.sample_rate, channels: 1, bit_depth: spec.bits_per_sample, duration_seconds: 0.0 };
+        let audio_r = AudioBuffer { samples: samples_r.clone(), sample_rate: spec.sample_rate, channels: 1, bit_depth: spec.bits_per_sample, duration_seconds: 0.0 };
+        
+        let mut p = ScanParams { clicks: true, hum: false, hiss: false, dropouts: false, distortion: false, sensitivity: 0.0, audio_mode: Some(AudioMode::Voice) };
+        let ev_l = ejecutar_analisis_dsp_mono(&audio_l, &stft_l, &p, 0);
+        let ev_r = ejecutar_analisis_dsp_mono(&audio_r, &stft_r, &p, 1);
+        
+        println!("--- GT-032 (74.051s) ---");
+        let mut gt032_events = Vec::new();
+        for e in ev_l.iter().chain(ev_r.iter()) {
+            if (e.time_secs - 74.051).abs() < 0.1 {
+                println!("{:?} L{} t={:.3} d={:?}", e.event_type, e.channel, e.time_secs, e.duration_samples);
+                gt032_events.push(e.clone());
+            }
+        }
+        gt032_events.sort_by(|a, b| a.time_secs.partial_cmp(&b.time_secs).unwrap());
+        let cons = consolidar_canales_glitches(gt032_events);
+        for e in cons {
+            println!("Consolidado: {:?} L{} t={:.3}", e.event_type, e.channel, e.time_secs);
+        }
+
+        println!("--- VOS-17 (30.883s) ---");
+        p.distortion = true;
+        p.clicks = false;
+        let ev2_l = ejecutar_analisis_dsp_mono(&audio_l, &stft_l, &p, 0);
+        let ev2_r = ejecutar_analisis_dsp_mono(&audio_r, &stft_r, &p, 1);
+        
+        for e in ev2_l.iter().chain(ev2_r.iter()) {
+            if (e.time_secs - 30.9).abs() < 0.5 {
+                println!("{:?} L{} t={:.3} idx={}", e.event_type, e.channel, e.time_secs, e.sample_index);
+            }
+        }
     }
 
     #[test]

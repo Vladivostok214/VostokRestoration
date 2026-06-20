@@ -1,27 +1,26 @@
-# P1.9_CURRENT_STATE.md
+# Vostok Restoration DSP - CURRENT_STATE
 
-## Estado General
+Última actualización: 2026-06-20
 
-Fecha: 2026-06-20
+Cobertura:
+P1.5 → P1.10E
+
 
 | Detector | Estado | Precisión | Recall | Prioridad |
 | -------- | ------ | --------- | ------ | --------- |
 | Click    | 🟢     | 100%      | 83.3%  | ALTA      |
-| Pop      | 🟡     | 62.5%     | 83.3%  | MEDIA     |
+| Pop      | 🟡     | 83.3%     | 83.3%  | MEDIA     |
 | Hum      | 🟢     | 100%      | 100%   | BAJA      |
 | Hiss     | 🟢     | 100%      | 100%   | BAJA      |
-| Dropout  | 🟡     | 66.7%     | 100%   | MEDIA     |
+| Dropout  | 🟡     | 66.7%     | 100%   | ALTA     |
 | Clipping | 🟢     | 100%      | 100%   | BAJA      |
 
-Línea activa: Ninguna (P1.9 Completado)
-Objetivo actual: Esperando nueva fase
 
 ### Métricas Globales Actuales
 
-* Precision: 91.18%
-* Recall: 86.11%
-* F1 Score: 88.57%
-
+Precision: 96.88%
+Recall: 86.11%
+F1 Score: 91.18%
 ---
 
 # Detector: Click
@@ -64,26 +63,27 @@ Próximo paso:
 
 # Detector: Pop
 
-Estado: 🟢 Funcional
+Estado: 🟢 Estable
 
-Métricas:
-
-* Precision: 62.5%
-* Recall: 83.3%
-
-Documentación asociada:
-
-* P1.5 REPORTE TÉCNICO IMPLEMENTACIÓN
-* P1.5 RESULTADOS IMPLEMENTACIÓN
+Precision: 83.3%
+Recall: 83.3%
+F1: 83.3%
 
 Conclusiones confirmadas:
 
-* El filtro ZCR eliminó la mayoría de falsos positivos vocales.
+- El filtro ZCR eliminó los falsos positivos vocales principales.
+- La consolidación Click↔Pop fue refinada durante P1.10.
+- El margen contextual de Clipping fue ampliado para absorber precursores energéticos.
+- El detector ya no presenta falsos positivos masivos.
 
 Hipótesis abiertas:
 
-* Reducir los 3 FP restantes.
+- GT-032 permanece como único Error de Tipo conocido.
 
+Próximo paso:
+
+- Ninguno inmediato.
+- Reabrir únicamente si GT-032 se convierte en prioridad.
 ---
 
 # Detector: Hum
@@ -201,8 +201,68 @@ Hipótesis abiertas:
 * Incompatibilidad Distortion <-> Clipping.
 * Firma Física Estricta como causa de FN masivo de Clicks (Solucionado en P1.9D).
 
+# P1.10 - Pop Precision Refinement (Completado)
+
+Objetivo:
+Eliminar falsos positivos residuales y errores de clasificación
+sin modificar detectores DSP.
+
+Documentación:
+
+- P1.10A REPORTE TÉCNICO AUDITORÍA PRECISIÓN POPS
+- P1.10B REPORTE TÉCNICO DISEÑO EXPERIMENTAL
+- P1.10C REPORTE TÉCNICO IMPLEMENTACIÓN
+- P1.10D REPORTE FORENSE CASOS RESIDUALES
+- P1.10E REPORTE TÉCNICO IMPLEMENTACIÓN
+
+Resultados:
+
+- VOS-17 eliminado correctamente mediante expansión de margen contextual de clipping.
+- Consolidación Click↔Pop mejorada.
+- Falsos positivos globales reducidos.
+- Precision global aumentada a 96.88%.
+
+Casos abiertos:
+
+- GT-032:
+  Click clasificado como Pop.
+  Único error de clasificación restante del detector Pop.
+
 ---
 
 # Línea de Investigación Activa
 
-Ninguna. (P1.9 COMPLETADO)
+LAB-DROPOUT-003
+
+Objetivo:
+Determinar la causa raíz del falso positivo persistente
+en ~101.647s y mejorar la precisión del detector Dropout.
+
+
+# DSP Maturity Snapshot
+
+Hum:
+🟢 Producción
+
+Hiss:
+🟢 Producción
+
+Clipping:
+🟢 Producción
+
+Click:
+🟢 Producción (Recall limitado por casos extremos conocidos)
+
+Pop:
+🟢 Estable (1 error de clasificación residual)
+
+Dropout:
+🟡 Requiere refinamiento
+
+Estado global del motor DSP:
+🟢 Estabilizado
+
+Último benchmark:
+Precision = 96.88%
+Recall = 86.11%
+F1 = 91.18%
