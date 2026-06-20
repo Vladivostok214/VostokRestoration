@@ -355,8 +355,12 @@ pub fn detectar_clicks(
                     if search_limit == 1 {
                         // Caso estricto: decaimiento inmediato
                         let exit_change = block_samples[n + transient_duration] - block_samples[n + transient_duration - 1];
+                        
                         if entry_change.signum() == exit_change.signum() {
-                            continue;
+                            let ratio = entry_change.abs() / exit_change.abs().max(1e-6);
+                            if ratio <= 10.0 {
+                                continue;
+                            }
                         }
                     } else {
                         // Caso relajado: buscar pico en ventana y verificar decaimiento posterior
