@@ -187,15 +187,19 @@ const TimelineScrubber = memo(function TimelineScrubber({
       onDoubleClick={() => onViewportChange(0, 1)}
       style={{
         width: '100%', height: '24px',
-        backgroundColor: '#050505', border: '1px solid rgba(255, 255, 255, 0.08)',
-        borderRadius: '4px', position: 'relative', overflow: 'hidden',
+        backgroundColor: 'rgba(6, 9, 12, 0.75)',
+        backdropFilter: 'var(--blur-glass)',
+        WebkitBackdropFilter: 'var(--blur-glass)',
+        border: '1px solid rgba(255, 255, 255, 0.08)',
+        borderRadius: '6px', position: 'relative', overflow: 'hidden',
         userSelect: 'none', boxSizing: 'border-box',
-        cursor: 'pointer'
+        cursor: 'pointer',
+        boxShadow: 'inset 0 0 10px rgba(0, 0, 0, 0.5)'
       }}
     >
       <div style={{
         position: 'absolute', inset: 0,
-        backgroundImage: 'linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)',
+        backgroundImage: 'linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)',
         backgroundSize: '10% 100%', pointerEvents: 'none', zIndex: 1
       }} />
 
@@ -204,8 +208,8 @@ const TimelineScrubber = memo(function TimelineScrubber({
         style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 2 }}
       />
 
-      <div style={{ position: 'absolute', top: 0, left: 0, width: `${leftPercent}%`, height: '100%', backgroundColor: 'rgba(0, 0, 0, 0.6)', pointerEvents: 'none', zIndex: 3 }} />
-      <div style={{ position: 'absolute', top: 0, right: 0, width: `${100 - leftPercent - widthPercent}%`, height: '100%', backgroundColor: 'rgba(0, 0, 0, 0.6)', pointerEvents: 'none', zIndex: 3 }} />
+      <div style={{ position: 'absolute', top: 0, left: 0, width: `${leftPercent}%`, height: '100%', backgroundColor: 'rgba(0, 0, 0, 0.55)', pointerEvents: 'none', zIndex: 3 }} />
+      <div style={{ position: 'absolute', top: 0, right: 0, width: `${100 - leftPercent - widthPercent}%`, height: '100%', backgroundColor: 'rgba(0, 0, 0, 0.55)', pointerEvents: 'none', zIndex: 3 }} />
 
       {/* Aguja del Playhead en el Scrubber Horizontal */}
       {duration > 0 && (
@@ -226,33 +230,35 @@ const TimelineScrubber = memo(function TimelineScrubber({
         onMouseDown={(e) => handleMouseDown(e, 'pan')}
         style={{
           position: 'absolute', left: `${leftPercent}%`, width: `${widthPercent}%`, height: '100%',
-          backgroundColor: 'transparent', borderLeft: '2px solid rgba(255, 255, 255, 0.6)', borderRight: '2px solid rgba(255, 255, 255, 0.6)',
-          cursor: 'grab', boxSizing: 'border-box', boxShadow: 'inset 0 0 8px rgba(255, 255, 255, 0.15)',
+          backgroundColor: 'rgba(82, 255, 60, 0.03)',
+          borderLeft: '2px solid var(--vostok-green)', borderRight: '2px solid var(--vostok-green)',
+          cursor: 'grab', boxSizing: 'border-box',
+          boxShadow: '0 0 10px rgba(82, 255, 60, 0.25), inset 0 0 12px rgba(82, 255, 60, 0.08)',
           display: 'flex', justifyContent: 'space-between', zIndex: 4
         }}
       >
         <div
           onMouseDown={(e) => handleMouseDown(e, 'zoom_start')}
           style={{
-            width: '6px', height: '100%', cursor: 'col-resize',
+            width: '8px', height: '100%', cursor: 'col-resize',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRight: '1px solid rgba(255, 255, 255, 0.2)'
+            backgroundColor: 'rgba(82, 255, 60, 0.08)', borderRight: '1px solid rgba(82, 255, 60, 0.25)'
           }}
           title="Zoom Inicio (Arrastrar)"
         >
-          <div style={{ width: '1px', height: '10px', backgroundColor: '#FFFFFF', opacity: 0.6 }} />
+          <div style={{ width: '1.5px', height: '10px', backgroundColor: 'var(--vostok-green)', opacity: 0.8 }} />
         </div>
 
         <div
           onMouseDown={(e) => handleMouseDown(e, 'zoom_end')}
           style={{
-            width: '6px', height: '100%', cursor: 'col-resize',
+            width: '8px', height: '100%', cursor: 'col-resize',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            backgroundColor: 'rgba(255, 255, 255, 0.05)', borderLeft: '1px solid rgba(255, 255, 255, 0.2)'
+            backgroundColor: 'rgba(82, 255, 60, 0.08)', borderLeft: '1px solid rgba(82, 255, 60, 0.25)'
           }}
           title="Zoom Fin (Arrastrar)"
         >
-          <div style={{ width: '1px', height: '10px', backgroundColor: '#FFFFFF', opacity: 0.6 }} />
+          <div style={{ width: '1.5px', height: '10px', backgroundColor: 'var(--vostok-green)', opacity: 0.8 }} />
         </div>
       </div>
     </div>

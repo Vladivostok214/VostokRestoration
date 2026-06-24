@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useCallback, memo, useMemo } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useCallback, memo, useMemo } from 'react';
+
 
 const FRAG_SHADER = `
   precision highp float;
@@ -240,16 +241,16 @@ const GlitchLayer = memo(function GlitchLayer({
 
         switch (type) {
           case 'click':
-            baseColor = "#39FF14";
+            baseColor = "#52FF3C";
             dashArray = isSelected ? "none" : "3 2";
             break;
           case 'pop':
-            baseColor = "#8AFF2E";
+            baseColor = "#52FF3C";
             dashArray = "none";
             strokeW = isSelected ? "3" : "1.5";
             break;
           case 'dropout':
-            baseColor = "#FF9100";
+            baseColor = "#00F5FF";
             dashArray = isSelected ? "none" : "6 4";
             strokeW = isSelected ? "3" : "1.2";
             break;
@@ -259,17 +260,17 @@ const GlitchLayer = memo(function GlitchLayer({
             strokeW = isSelected ? "2.5" : "1.2";
             break;
           case 'hiss':
-            baseColor = "#BD00FF";
+            baseColor = "#2860EB";
             dashArray = isSelected ? "none" : "2 2";
             strokeW = isSelected ? "2" : "0.8";
             break;
           case 'slip':
-            baseColor = "#FFFF00";
+            baseColor = "#52FF3C";
             dashArray = isSelected ? "none" : "1 2";
             strokeW = isSelected ? "2.5" : "1.2";
             break;
           case 'distortion':
-            baseColor = "#FF003C";
+            baseColor = "#FF518D";
             dashArray = "none";
             strokeW = isSelected ? "3.5" : "2.0";
             break;
@@ -326,24 +327,28 @@ const GlitchLayer = memo(function GlitchLayer({
               </>
             ) : (
               <>
-                {/* 1. Top-Docked Pill (Anclada al cielo de la línea de tiempo) */}
+                {/* 1. Top-Docked Pill (Anclada al cielo de la línea de tiempo - Estilo Hardware Angular) */}
                 <rect 
                   className="glitch-pill"
                   x={`${centeredX}%`} 
                   y="2" 
                   width={`${widthPercent}%`} 
                   height="14" 
-                  rx="3" 
+                  rx="0" 
                   fill={baseColor} 
-                  fillOpacity={isSelected ? 1.0 : 0.6}
+                  fillOpacity={isSelected ? 1.0 : 0.5}
                   stroke={baseColor} 
                   strokeWidth="1" 
+                  style={{
+                    filter: isSelected ? `drop-shadow(0 0 6px ${baseColor})` : 'none',
+                    transition: 'all 0.2s ease'
+                  }}
                 />
                 
-                {/* 2. Haz de Luz (Ghost Beam) que baja desde la píldora */}
+                {/* 2. Haz de Luz (Ghost Beam) que baja desde la píldora - Atenuado para legibilidad del espectro */}
                 <defs>
                   <linearGradient id={`grad-${idx}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={baseColor} stopOpacity="0.8" />
+                    <stop offset="0%" stopColor={baseColor} stopOpacity={isSelected ? "0.35" : "0.10"} />
                     <stop offset="100%" stopColor={baseColor} stopOpacity="0" />
                   </linearGradient>
                 </defs>
@@ -356,8 +361,22 @@ const GlitchLayer = memo(function GlitchLayer({
                   fill={`url(#grad-${idx})`} 
                   pointerEvents="none"
                 />
+
+                {/* 3. Aguja Central de Calibración Quirúrgica (Retículo de Osciloscopio) */}
+                <line 
+                  x1={`${x_screen}%`} 
+                  y1="16" 
+                  x2={`${x_screen}%`} 
+                  y2="100%" 
+                  stroke={baseColor} 
+                  strokeWidth="1" 
+                  strokeDasharray="3 3"
+                  opacity={isSelected ? 0.8 : 0.20}
+                  style={{ transition: 'opacity 0.2s ease' }}
+                  pointerEvents="none"
+                />
                 
-                {/* 3. Hitbox invisible para facilitar el hover y click con el ratón */}
+                {/* 4. Hitbox invisible para facilitar el hover y click con el ratón */}
                 <rect 
                   x={`calc(${centeredX}% - 8px)`} 
                   y="0" 
@@ -419,6 +438,8 @@ const SpectrogramGL = memo(function SpectrogramGL({
   const [showSettings, setShowSettings] = useState(false);
 
   const canvasAreaRef = useRef(null);
+  const menuRef = useRef(null);
+
 
   // Limpiar selección si cambiamos de modo de herramienta
   useEffect(() => {
@@ -511,6 +532,51 @@ const SpectrogramGL = memo(function SpectrogramGL({
       setShowMenu(false);
     }
   }, [isDragging, toolMode, selection]);
+
+  // Reposicionar el menú contextual quirúrgico para evitar desbordamientos horizontales
+  useLayoutEffect(() => {
+    if (!selection || !showMenu) return;
+
+    const repositionMenu = () => {
+      if (menuRef.current && canvasAreaRef.current) {
+        const menuRect = menuRef.current.getBoundingClientRect();
+        const parentRect = canvasAreaRef.current.getBoundingClientRect();
+        
+        // Posición horizontal objetivo (centro de la selección)
+        const selectionCenter = ((selection.x1 + selection.x2) / 2) * parentRect.width;
+        const halfWidth = menuRect.width / 2;
+        
+        // Limitar para que se mantenga completamente dentro del contenedor con 6px de margen de seguridad
+        const minLeft = halfWidth + 6;
+        const maxLeft = parentRect.width - halfWidth - 6;
+        const clampedLeft = Math.max(minLeft, Math.min(maxLeft, selectionCenter));
+        
+        // Aplicar la posición inline de forma directa para máximo rendimiento (0% CPU idle)
+        menuRef.current.style.left = `${clampedLeft}px`;
+        
+        // Lógica de posicionamiento vertical (arriba o abajo de la selección)
+        const topPct = Math.min(selection.y1, selection.y2) * 100;
+        if (topPct > 15) {
+          menuRef.current.style.top = `calc(${topPct}% - 8px)`;
+          menuRef.current.style.transform = 'translate(-50%, -100%)';
+        } else {
+          const bottomPct = Math.max(selection.y1, selection.y2) * 100;
+          menuRef.current.style.top = `calc(${bottomPct}% + 8px)`;
+          menuRef.current.style.transform = 'translate(-50%, 0)';
+        }
+      }
+    };
+
+    // Ejecutar inmediatamente
+    repositionMenu();
+
+    // Escuchar cambios de tamaño de ventana para ajustar la posición dinámicamente
+    window.addEventListener('resize', repositionMenu);
+    return () => {
+      window.removeEventListener('resize', repositionMenu);
+    };
+  }, [selection, showMenu]);
+
 
   const handleApplyRepair = useCallback(async (type) => {
     if (!selection || !duration || !sampleRate || !healSelection) return;
@@ -628,8 +694,9 @@ const SpectrogramGL = memo(function SpectrogramGL({
 
       const xPercent = ((timePercent - viewStart) / (viewEnd - viewStart)) * 100;
       
-      const yTop = 50 - val * 45;
-      const yBottom = 50 + val * 45;
+      // Comprimimos verticalmente la forma de onda para un aspecto más elegante y compacto (30% de la altura total en lugar de 90%)
+      const yTop = 50 - val * 15;
+      const yBottom = 50 + val * 15;
       
       pointsTop.push(`${xPercent.toFixed(1)},${yTop.toFixed(1)}`);
       pointsBottom.push(`${xPercent.toFixed(1)},${yBottom.toFixed(1)}`);
@@ -991,7 +1058,7 @@ const SpectrogramGL = memo(function SpectrogramGL({
         style={{ 
           height: '24px', 
           width: '100%', 
-          backgroundColor: '#0a0a0a', 
+          backgroundColor: 'transparent', 
           borderBottom: '1px solid rgba(255, 255, 255, 0.1)', 
           position: 'relative', 
           cursor: 'col-resize', 
@@ -1037,36 +1104,34 @@ const SpectrogramGL = memo(function SpectrogramGL({
               transform: 'translateX(-50%)',
               height: '18px',
               padding: '0 8px',
-              background: '#010101',
-              border: '1px solid #39FF14',
-              borderRadius: '3px',
-              color: '#39FF14',
-              fontSize: '8px',
+              background: '#070c08',
+              border: '1px solid var(--vostok-green)',
+              borderRadius: '4px',
+              color: 'var(--vostok-green)',
+              fontSize: '8.5px',
               fontWeight: 900,
-              fontFamily: 'JetBrains Mono, monospace',
+              fontFamily: 'var(--font-mono)',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               gap: '4px',
               zIndex: 10,
               pointerEvents: 'auto',
-              boxShadow: '0 0 8px rgba(57, 255, 20, 0.35)',
+              boxShadow: '0 0 10px rgba(82, 255, 60, 0.25), inset 0 1px 1px rgba(82, 255, 60, 0.15)',
               transition: 'all 0.15s ease',
               whiteSpace: 'nowrap'
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = '#39FF14';
-              e.currentTarget.style.color = '#010101';
-              e.currentTarget.style.boxShadow = '0 0 12px #39FF14';
+              e.currentTarget.style.background = 'linear-gradient(180deg, rgba(82, 255, 60, 0.3) 0%, rgba(82, 255, 60, 0.08) 100%)';
+              e.currentTarget.style.boxShadow = '0 0 15px rgba(82, 255, 60, 0.5), inset 0 1px 1px rgba(82, 255, 60, 0.3)';
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.background = '#010101';
-              e.currentTarget.style.color = '#39FF14';
-              e.currentTarget.style.boxShadow = '0 0 8px rgba(57, 255, 20, 0.35)';
+              e.currentTarget.style.background = '#070c08';
+              e.currentTarget.style.boxShadow = '0 0 10px rgba(82, 255, 60, 0.25), inset 0 1px 1px rgba(82, 255, 60, 0.15)';
             }}
             title="Escanear y detectar anomalías en la región del loop"
           >
-            <span style={{ fontSize: '7px' }}>⚡</span> ESCANEAR LOOP
+            ESCANEAR LOOP
           </button>
         )}
 
@@ -1198,14 +1263,28 @@ const SpectrogramGL = memo(function SpectrogramGL({
             preserveAspectRatio="none"
           >
             <defs>
+              {/* Degradado holográfico bicromático: Cyan en la mitad superior, Verde en la mitad inferior */}
               <linearGradient id="waveformGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#39FF14" stopOpacity="0.16" />
-                <stop offset="50%" stopColor="#39FF14" stopOpacity="0.01" />
-                <stop offset="100%" stopColor="#39FF14" stopOpacity="0.16" />
+                <stop offset="0%" stopColor="#00FFFF" stopOpacity="0.14" />
+                <stop offset="50%" stopColor="#00FFFF" stopOpacity="0.01" />
+                <stop offset="50.1%" stopColor="#39FF14" stopOpacity="0.01" />
+                <stop offset="100%" stopColor="#39FF14" stopOpacity="0.14" />
               </linearGradient>
             </defs>
 
-            {/* Relleno con degradado vertical holográfico */}
+            {/* Línea central de referencia de fase / osciloscópica (Zero-Crossing) */}
+            <line 
+              x1="0" 
+              y1="50" 
+              x2="100" 
+              y2="50" 
+              stroke="rgba(0, 255, 255, 0.12)" 
+              strokeWidth="0.5" 
+              strokeDasharray="2 4"
+              vectorEffect="non-scaling-stroke"
+            />
+
+            {/* Relleno con degradado vertical holográfico bicromático */}
             <path 
               d={waveformPaths.fillD} 
               fill="url(#waveformGrad)" 
@@ -1215,30 +1294,30 @@ const SpectrogramGL = memo(function SpectrogramGL({
               opacity={waveformOpacity}
             />
 
-            {/* Contorno superior con glow holográfico */}
+            {/* Contorno superior con glow holográfico Cyan */}
             <path 
               d={waveformPaths.topD} 
               fill="none" 
-              stroke="#39FF14" 
-              strokeWidth="1.2" 
+              stroke="#00FFFF" 
+              strokeWidth="1.0" 
               vectorEffect="non-scaling-stroke"
               style={{ 
                 transition: 'opacity 0.15s ease',
-                filter: 'drop-shadow(0 0 3px rgba(57, 255, 20, 0.75))'
+                filter: 'drop-shadow(0 0 3px rgba(0, 255, 255, 0.8))'
               }}
               opacity={waveformOpacity * 0.9}
             />
 
-            {/* Contorno inferior con glow holográfico */}
+            {/* Contorno inferior con glow holográfico Verde */}
             <path 
               d={waveformPaths.bottomD} 
               fill="none" 
               stroke="#39FF14" 
-              strokeWidth="1.2" 
+              strokeWidth="1.0" 
               vectorEffect="non-scaling-stroke"
               style={{ 
                 transition: 'opacity 0.15s ease',
-                filter: 'drop-shadow(0 0 3px rgba(57, 255, 20, 0.75))'
+                filter: 'drop-shadow(0 0 3px rgba(57, 255, 20, 0.8))'
               }}
               opacity={waveformOpacity * 0.9}
             />
@@ -1283,9 +1362,11 @@ const SpectrogramGL = memo(function SpectrogramGL({
         {/* Menú contextual flotante de restauración quirúrgica */}
         {selection && showMenu && (
           <div
+            ref={menuRef}
             style={{
+
               position: 'absolute',
-              left: `${(Math.min(selection.x1, selection.x2) + Math.max(selection.x1, selection.x2)) / 2 * 100}%`,
+              left: `${Math.max(20, Math.min(80, (selection.x1 + selection.x2) / 2 * 100))}%`,
               top: Math.min(selection.y1, selection.y2) * 100 > 15 
                 ? `calc(${Math.min(selection.y1, selection.y2) * 100}% - 8px)` 
                 : `calc(${Math.max(selection.y1, selection.y2) * 100}% + 8px)`,
@@ -1316,8 +1397,8 @@ const SpectrogramGL = memo(function SpectrogramGL({
                 key={type}
                 onClick={() => handleApplyRepair(type)}
                 style={{
-                  background: 'rgba(255, 255, 255, 0.04)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  background: '#121212',
+                  border: '1px solid rgba(255, 255, 255, 0.15)',
                   color: '#fff',
                   fontFamily: 'JetBrains Mono, monospace',
                   fontSize: '9px',
@@ -1330,12 +1411,12 @@ const SpectrogramGL = memo(function SpectrogramGL({
                 onMouseEnter={(e) => {
                   e.currentTarget.style.borderColor = '#39FF14';
                   e.currentTarget.style.color = '#39FF14';
-                  e.currentTarget.style.backgroundColor = 'rgba(57, 255, 20, 0.05)';
+                  e.currentTarget.style.backgroundColor = '#081d09';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)';
                   e.currentTarget.style.color = '#fff';
-                  e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.04)';
+                  e.currentTarget.style.backgroundColor = '#121212';
                 }}
               >
                 {type.toUpperCase() === 'DISTORTION' ? 'CLIP' : type.toUpperCase()}
@@ -1367,213 +1448,195 @@ const SpectrogramGL = memo(function SpectrogramGL({
           </div>
         )}
 
-        {/* Botón de Ajustes Espectrales */}
-        <button
+      </div>
+
+      {/* Botón de Ajustes Espectrales */}
+      <button
+        onMouseDown={(e) => e.stopPropagation()}
+        onMouseUp={(e) => e.stopPropagation()}
+        onClick={(e) => { e.stopPropagation(); setShowSettings(!showSettings); }}
+        style={{
+          position: 'absolute',
+          top: '10px',
+          right: '46px',
+          zIndex: 200,
+          backgroundColor: showSettings ? 'rgba(0, 245, 255, 0.15)' : 'rgba(6, 9, 12, 0.75)',
+          backdropFilter: 'var(--blur-glass)',
+          border: showSettings ? '1px solid var(--vostok-cyan)' : '1px solid rgba(255, 255, 255, 0.08)',
+          borderRadius: '4px',
+          padding: '6px',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: showSettings ? 'var(--vostok-cyan)' : '#fff',
+          transition: 'all 0.15s ease',
+          boxShadow: 'var(--shadow-panel)'
+        }}
+        onMouseEnter={(e) => {
+          if (!showSettings) {
+            e.currentTarget.style.borderColor = 'var(--vostok-cyan)';
+            e.currentTarget.style.boxShadow = '0 0 10px rgba(0, 245, 255, 0.4)';
+            e.currentTarget.style.backgroundColor = 'rgba(0, 245, 255, 0.06)';
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!showSettings) {
+            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+            e.currentTarget.style.boxShadow = 'var(--shadow-panel)';
+            e.currentTarget.style.backgroundColor = 'rgba(6, 9, 12, 0.75)';
+          }
+        }}
+        title="Configuración Visual del Espectrograma"
+      >
+        <SettingsIcon size={14} />
+      </button>
+
+      {/* Panel de Ajustes Espectrales (Overlay) */}
+      {showSettings && (
+        <div
           onMouseDown={(e) => e.stopPropagation()}
           onMouseUp={(e) => e.stopPropagation()}
-          onClick={(e) => { e.stopPropagation(); setShowSettings(!showSettings); }}
+          onClick={(e) => e.stopPropagation()}
+          onWheel={(e) => e.stopPropagation()}
+          onMouseMove={(e) => e.stopPropagation()}
+          className="glass-panel"
           style={{
             position: 'absolute',
-            top: '8px',
-            right: '48px',
+            top: '42px',
+            right: '10px',
             zIndex: 200,
-            backgroundColor: showSettings ? 'rgba(57, 255, 20, 0.15)' : 'rgba(1, 1, 1, 0.75)',
-            backdropFilter: 'blur(8px)',
-            border: showSettings ? '1px solid #39FF14' : '1px solid rgba(57, 255, 20, 0.25)',
+            backgroundColor: 'rgba(6, 9, 12, 0.88)',
+            backdropFilter: 'var(--blur-glass)',
+            border: '1px solid rgba(0, 245, 255, 0.18)',
             borderRadius: '4px',
-            padding: '6px',
-            cursor: 'pointer',
+            padding: '16px',
             display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: showSettings ? '#39FF14' : '#fff',
-            transition: 'all 0.15s ease',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.5)'
+            flexDirection: 'column',
+            gap: '14px',
+            minWidth: '240px',
+            boxShadow: 'var(--shadow-panel), var(--shadow-glow-c)',
+            userSelect: 'none'
           }}
-          onMouseEnter={(e) => {
-            if (!showSettings) {
-              e.currentTarget.style.borderColor = '#39FF14';
-              e.currentTarget.style.boxShadow = '0 0 8px rgba(57, 255, 20, 0.4)';
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (!showSettings) {
-              e.currentTarget.style.borderColor = 'rgba(57, 255, 20, 0.25)';
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.5)';
-            }
-          }}
-          title="Configuración Visual del Espectrograma"
         >
-          <SettingsIcon size={14} />
-        </button>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', paddingBottom: '8px' }}>
+            <span style={{ fontSize: '10px', color: 'var(--vostok-cyan)', fontWeight: 900, letterSpacing: '0.12em', fontFamily: 'var(--font-ui)' }}>AJUSTES ESPECTRALES</span>
+            <button 
+              onClick={() => setShowSettings(false)}
+              style={{ background: 'none', border: 'none', color: 'rgba(255, 255, 255, 0.4)', cursor: 'pointer', fontSize: '11px', padding: '2px 4px', transition: 'color 0.15s' }}
+              onMouseEnter={e => e.currentTarget.style.color = 'var(--vostok-cyan)'}
+              onMouseLeave={e => e.currentTarget.style.color = 'rgba(255, 255, 255, 0.4)'}
+            >
+              ✕
+            </button>
+          </div>
 
-        {/* Panel de Ajustes Espectrales (Overlay) */}
-        {showSettings && (
-          <div
-            onMouseDown={(e) => e.stopPropagation()}
-            onMouseUp={(e) => e.stopPropagation()}
-            onClick={(e) => e.stopPropagation()}
-            onWheel={(e) => e.stopPropagation()}
-            onMouseMove={(e) => e.stopPropagation()}
-            style={{
-              position: 'absolute',
-              top: '42px',
-              right: '10px',
-              zIndex: 200,
-              backgroundColor: 'rgba(1, 1, 1, 0.94)',
-              backdropFilter: 'blur(12px)',
-              border: '1px solid rgba(57, 255, 20, 0.35)',
-              borderRadius: '6px',
-              padding: '14px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '12px',
-              minWidth: '220px',
-              boxShadow: '0 6px 24px rgba(0, 0, 0, 0.8), 0 0 15px rgba(57, 255, 20, 0.15)',
-              userSelect: 'none'
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', paddingBottom: '6px' }}>
-              <span style={{ fontSize: '9px', color: '#39FF14', fontWeight: 900, letterSpacing: '0.05em' }}>AJUSTES ESPECTRALES</span>
-              <button 
-                onClick={() => setShowSettings(false)}
-                style={{ background: 'none', border: 'none', color: 'rgba(255, 255, 255, 0.4)', cursor: 'pointer', fontSize: '10px', padding: 0 }}
-                onMouseEnter={e => e.currentTarget.style.color = '#39FF14'}
-                onMouseLeave={e => e.currentTarget.style.color = 'rgba(255, 255, 255, 0.4)'}
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Escala */}
-            {setScaleMode && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                <span style={{ fontSize: '8px', color: 'rgba(255, 255, 255, 0.4)', fontWeight: 900, letterSpacing: '0.05em' }}>ESCALA</span>
-                <select
-                  value={scaleMode}
-                  onChange={(e) => setScaleMode(parseInt(e.target.value))}
-                  style={{
-                    background: '#0a0a0a',
-                    border: '1px solid rgba(255, 255, 255, 0.15)',
-                    color: '#fff',
-                    fontFamily: 'JetBrains Mono, monospace',
-                    fontSize: '9px',
-                    padding: '3px 6px',
-                    borderRadius: '3px',
-                    cursor: 'pointer',
-                    outline: 'none'
-                  }}
-                >
-                  <option value={1}>Mel</option>
-                  <option value={3}>Bark</option>
-                  <option value={2}>Logarítmica</option>
-                  <option value={0}>Lineal</option>
-                </select>
-              </div>
-            )}
-
-            {/* Paleta */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-              <span style={{ fontSize: '8px', color: 'rgba(255, 255, 255, 0.4)', fontWeight: 900, letterSpacing: '0.05em' }}>PALETA</span>
+          {/* Escala */}
+          {setScaleMode && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <span style={{ fontSize: '8px', color: 'rgba(255, 255, 255, 0.4)', fontWeight: 900, letterSpacing: '0.05em' }}>ESCALA</span>
               <select
-                value={colorPalette}
-                onChange={(e) => setColorPalette(parseInt(e.target.value))}
-                style={{
-                  background: '#0a0a0a',
-                  border: '1px solid rgba(255, 255, 255, 0.15)',
-                  color: '#fff',
-                  fontFamily: 'JetBrains Mono, monospace',
-                  fontSize: '9px',
-                  padding: '3px 6px',
-                  borderRadius: '3px',
-                  cursor: 'pointer',
-                  outline: 'none'
-                }}
+                value={scaleMode}
+                onChange={(e) => setScaleMode(parseInt(e.target.value))}
+                className="vostok-select vostok-select--cyan"
               >
-                <option value={0}>Inferno</option>
-                <option value={1}>Viridis</option>
-                <option value={2}>Hielo</option>
-                <option value={3}>Monocromo</option>
+                <option value={1}>Mel</option>
+                <option value={3}>Bark</option>
+                <option value={2}>Logarítmica</option>
+                <option value={0}>Lineal</option>
               </select>
             </div>
+          )}
 
-            {/* Opacidad Onda */}
-            {setWaveformOpacity && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8px', fontWeight: 900 }}>
-                  <span style={{ color: 'rgba(255, 255, 255, 0.4)', letterSpacing: '0.05em' }}>OPACIDAD DE ONDA</span>
-                  <span style={{ color: '#39FF14' }}>{(waveformOpacity * 100).toFixed(0)}%</span>
-                </div>
-                <input
-                  type="range"
-                  min="0.0"
-                  max="1.0"
-                  step="0.05"
-                  value={waveformOpacity}
-                  onChange={(e) => setWaveformOpacity(parseFloat(e.target.value))}
-                  style={{
-                    accentColor: '#39FF14',
-                    height: '3px',
-                    cursor: 'pointer',
-                    width: '100%',
-                    margin: '2px 0'
-                  }}
-                />
-              </div>
-            )}
-
-            {/* Piso de Ruido */}
-            {setDbFloor && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8px', fontWeight: 900 }}>
-                  <span style={{ color: 'rgba(255, 255, 255, 0.4)', letterSpacing: '0.05em' }}>PISO DE RUIDO</span>
-                  <span style={{ color: '#39FF14' }}>{dbFloor.toFixed(0)} dB</span>
-                </div>
-                <input
-                  type="range"
-                  min="-96.0"
-                  max="-20.0"
-                  step="1.0"
-                  value={dbFloor}
-                  onChange={(e) => setDbFloor(parseFloat(e.target.value))}
-                  style={{
-                    accentColor: '#39FF14',
-                    height: '3px',
-                    cursor: 'pointer',
-                    width: '100%',
-                    margin: '2px 0'
-                  }}
-                />
-              </div>
-            )}
-
-            {/* Techo de Rango */}
-            {setDbCeiling && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8px', fontWeight: 900 }}>
-                  <span style={{ color: 'rgba(255, 255, 255, 0.4)', letterSpacing: '0.05em' }}>TECHO DE RANGO</span>
-                  <span style={{ color: '#39FF14' }}>{dbCeiling.toFixed(0)} dB</span>
-                </div>
-                <input
-                  type="range"
-                  min="-20.0"
-                  max="0.0"
-                  step="1.0"
-                  value={dbCeiling}
-                  onChange={(e) => setDbCeiling(parseFloat(e.target.value))}
-                  style={{
-                    accentColor: '#39FF14',
-                    height: '3px',
-                    cursor: 'pointer',
-                    width: '100%',
-                    margin: '2px 0'
-                  }}
-                />
-              </div>
-            )}
+          {/* Paleta */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <span style={{ fontSize: '8px', color: 'rgba(255, 255, 255, 0.4)', fontWeight: 900, letterSpacing: '0.05em' }}>PALETA</span>
+            <select
+              value={colorPalette}
+              onChange={(e) => setColorPalette(parseInt(e.target.value))}
+              className="vostok-select vostok-select--cyan"
+            >
+              <option value={0}>Inferno</option>
+              <option value={1}>Viridis</option>
+              <option value={2}>Hielo</option>
+              <option value={3}>Monocromo</option>
+            </select>
           </div>
-        )}
-      </div>
+
+          {/* Opacidad Onda */}
+          {setWaveformOpacity && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8px', fontWeight: 900 }}>
+                <span style={{ color: 'rgba(255, 255, 255, 0.4)', letterSpacing: '0.05em' }}>OPACIDAD DE ONDA</span>
+                <span style={{ color: 'var(--vostok-cyan)', fontFamily: 'var(--font-mono)' }}>{(waveformOpacity * 100).toFixed(0)}%</span>
+              </div>
+              <input
+                type="range"
+                min="0.0"
+                max="1.0"
+                step="0.05"
+                value={waveformOpacity}
+                onChange={(e) => setWaveformOpacity(parseFloat(e.target.value))}
+                className="slider-cyan"
+                style={{
+                  width: '100%',
+                  margin: '6px 0',
+                  cursor: 'pointer'
+                }}
+              />
+            </div>
+          )}
+
+          {/* Piso de Ruido */}
+          {setDbFloor && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8px', fontWeight: 900 }}>
+                <span style={{ color: 'rgba(255, 255, 255, 0.4)', letterSpacing: '0.05em' }}>PISO DE RUIDO</span>
+                <span style={{ color: 'var(--vostok-cyan)', fontFamily: 'var(--font-mono)' }}>{dbFloor.toFixed(0)} dB</span>
+              </div>
+              <input
+                type="range"
+                min="-96.0"
+                max="-20.0"
+                step="1.0"
+                value={dbFloor}
+                onChange={(e) => setDbFloor(parseFloat(e.target.value))}
+                className="slider-cyan"
+                style={{
+                  width: '100%',
+                  margin: '6px 0',
+                  cursor: 'pointer'
+                }}
+              />
+            </div>
+          )}
+
+          {/* Techo de Rango */}
+          {setDbCeiling && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8px', fontWeight: 900 }}>
+                <span style={{ color: 'rgba(255, 255, 255, 0.4)', letterSpacing: '0.05em' }}>TECHO DE RANGO</span>
+                <span style={{ color: 'var(--vostok-cyan)', fontFamily: 'var(--font-mono)' }}>{dbCeiling.toFixed(0)} dB</span>
+              </div>
+              <input
+                type="range"
+                min="-20.0"
+                max="0.0"
+                step="1.0"
+                value={dbCeiling}
+                onChange={(e) => setDbCeiling(parseFloat(e.target.value))}
+                className="slider-cyan"
+                style={{
+                  width: '100%',
+                  margin: '6px 0',
+                  cursor: 'pointer'
+                }}
+              />
+            </div>
+          )}
+        </div>
+      )}
+
 
       {/* dB Scale Legend (Calibración dinámica reactiva SOTA) */}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: '#050505', borderTop: '1px solid rgba(255, 255, 255, 0.08)', padding: '6px 24px', height: '32px', flexShrink: 0, userSelect: 'none' }}>

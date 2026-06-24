@@ -139,16 +139,19 @@ const VerticalScrubber = memo(function VerticalScrubber({ viewStart, viewEnd, on
       ref={containerRef}
       onDoubleClick={() => onViewportChange(0, 1)}
       style={{
-        width: '24px', height: '100%',
-        backgroundColor: '#050505',
+        width: '28px', height: '100%',
+        backgroundColor: 'rgba(6, 9, 12, 0.75)',
+        backdropFilter: 'var(--blur-glass)',
+        WebkitBackdropFilter: 'var(--blur-glass)',
         border: '1px solid rgba(255, 255, 255, 0.08)',
-        borderRadius: '4px', position: 'relative',
-        overflow: 'hidden', userSelect: 'none', boxSizing: 'border-box'
+        borderRadius: '6px', position: 'relative',
+        overflow: 'hidden', userSelect: 'none', boxSizing: 'border-box',
+        boxShadow: 'inset 0 0 10px rgba(0, 0, 0, 0.5)'
       }}
     >
       <div style={{
         position: 'absolute', inset: 0,
-        backgroundImage: 'linear-gradient(0deg, rgba(255,255,255,0.03) 1px, transparent 1px)',
+        backgroundImage: 'linear-gradient(0deg, rgba(255,255,255,0.02) 1px, transparent 1px)',
         backgroundSize: '100% 10%', pointerEvents: 'none', zIndex: 1
       }} />
 
@@ -170,8 +173,8 @@ const VerticalScrubber = memo(function VerticalScrubber({ viewStart, viewEnd, on
                 transition: 'top 0.2s ease-out'
               }}
             >
-              <div style={{ width: '4px', height: '1px', backgroundColor: 'rgba(255,255,255,0.2)' }} />
-              <span style={{ fontSize: '7.5px', color: 'rgba(255,255,255,0.35)', fontFamily: 'JetBrains Mono, monospace' }}>
+              <div style={{ width: '4px', height: '1px', backgroundColor: 'rgba(255,255,255,0.3)' }} />
+              <span style={{ fontSize: '7.5px', color: 'rgba(255,255,255,0.45)', fontFamily: 'JetBrains Mono, monospace', fontWeight: 500 }}>
                 {formatFreq(freq)}
               </span>
             </div>
@@ -182,22 +185,22 @@ const VerticalScrubber = memo(function VerticalScrubber({ viewStart, viewEnd, on
       <div style={{
         position: 'absolute', top: 0, left: 0, width: '100%',
         height: `${100 - bottomPercent - heightPercent}%`,
-        backgroundColor: 'rgba(0, 0, 0, 0.6)', pointerEvents: 'none', zIndex: 3
+        backgroundColor: 'rgba(0, 0, 0, 0.55)', pointerEvents: 'none', zIndex: 3
       }} />
       <div style={{
         position: 'absolute', bottom: 0, left: 0, width: '100%',
         height: `${bottomPercent}%`,
-        backgroundColor: 'rgba(0, 0, 0, 0.6)', pointerEvents: 'none', zIndex: 3
+        backgroundColor: 'rgba(0, 0, 0, 0.55)', pointerEvents: 'none', zIndex: 3
       }} />
 
       <div
         onMouseDown={(e) => handleMouseDown(e, 'pan')}
         style={{
           position: 'absolute', bottom: `${bottomPercent}%`, height: `${heightPercent}%`, width: '100%',
-          backgroundColor: 'transparent',
-          borderTop: '2px solid rgba(255, 255, 255, 0.6)', borderBottom: '2px solid rgba(255, 255, 255, 0.6)',
+          backgroundColor: 'rgba(0, 245, 255, 0.03)',
+          borderTop: '2px solid var(--vostok-cyan)', borderBottom: '2px solid var(--vostok-cyan)',
           cursor: 'grab', boxSizing: 'border-box',
-          boxShadow: 'inset 0 0 8px rgba(255, 255, 255, 0.15)',
+          boxShadow: '0 0 10px rgba(0, 245, 255, 0.25), inset 0 0 12px rgba(0, 245, 255, 0.08)',
           display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
           zIndex: 4
         }}
@@ -205,25 +208,25 @@ const VerticalScrubber = memo(function VerticalScrubber({ viewStart, viewEnd, on
         <div
           onMouseDown={(e) => handleMouseDown(e, 'zoom_end')}
           style={{
-            height: '6px', width: '100%', cursor: 'row-resize',
+            height: '8px', width: '100%', cursor: 'row-resize',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            backgroundColor: 'rgba(255, 255, 255, 0.05)', borderBottom: '1px solid rgba(255, 255, 255, 0.2)'
+            backgroundColor: 'rgba(0, 245, 255, 0.08)', borderBottom: '1px solid rgba(0, 245, 255, 0.25)'
           }}
           title="Zoom Agudos (Arrastrar)"
         >
-          <div style={{ height: '1px', width: '10px', backgroundColor: '#FFFFFF', opacity: 0.6 }} />
+          <div style={{ height: '1.5px', width: '10px', backgroundColor: 'var(--vostok-cyan)', opacity: 0.8 }} />
         </div>
 
         <div
           onMouseDown={(e) => handleMouseDown(e, 'zoom_start')}
           style={{
-            height: '6px', width: '100%', cursor: 'row-resize',
+            height: '8px', width: '100%', cursor: 'row-resize',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            backgroundColor: 'rgba(255, 255, 255, 0.05)', borderTop: '1px solid rgba(255, 255, 255, 0.2)'
+            backgroundColor: 'rgba(0, 245, 255, 0.08)', borderTop: '1px solid rgba(0, 245, 255, 0.25)'
           }}
           title="Zoom Graves (Arrastrar)"
         >
-          <div style={{ height: '1px', width: '10px', backgroundColor: '#FFFFFF', opacity: 0.6 }} />
+          <div style={{ height: '1.5px', width: '10px', backgroundColor: 'var(--vostok-cyan)', opacity: 0.8 }} />
         </div>
       </div>
     </div>

@@ -8,6 +8,8 @@
 :root {
   --vostok-green:     #39FF14;
   --vostok-cyan:      #00FFFF;
+  --vostok-blue:      #2E66FF;
+  --vostok-pink:      #FF518D;
   --vostok-black:     #010101;
   --vostok-surface:   rgba(255, 255, 255, 0.03);
   --vostok-border:    rgba(255, 255, 255, 0.08);
@@ -91,6 +93,17 @@ html, body, #root {
   backdrop-filter: var(--blur-glass);
   -webkit-backdrop-filter: var(--blur-glass);
   box-shadow: var(--shadow-panel);
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.1); /* Spring physics elástica */
+}
+
+.glass-panel--interactive {
+  cursor: pointer;
+}
+.glass-panel--interactive:hover {
+  transform: translateY(-2px) scale(1.004);
+  background: rgba(8, 12, 16, 0.8);
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.7), 0 0 20px rgba(255, 255, 255, 0.02);
 }
 
 .glass-panel--green {
@@ -102,6 +115,17 @@ html, body, #root {
   border-color: var(--vostok-border-c);
   box-shadow: var(--shadow-glow-c), var(--shadow-panel);
 }
+
+/* --- TACTILE NOISE OVERLAY --- */
+.app-noise-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  opacity: 0.012;
+  z-index: 9999;
+}
+
 
 /* --- TYPOGRAPHY --- */
 .font-mono  { font-family: var(--font-mono); }
@@ -129,30 +153,30 @@ html, body, #root {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--vostok-surface);
+  background: #121212;
   border: 1px solid var(--vostok-border);
   border-radius: var(--radius-md);
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s, transform 0.1s;
   color: rgba(255,255,255,0.6);
 }
-.btn-icon:hover  { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.18); }
+.btn-icon:hover  { background: #1c1c1c; border-color: rgba(255,255,255,0.25); }
 .btn-icon:active { transform: scale(0.94); }
 
 .btn-icon--green {
   border-color: var(--vostok-border-g);
-  background: rgba(57, 255, 20, 0.08);
+  background: #081d09;
   color: var(--vostok-green);
   box-shadow: var(--shadow-glow-g);
 }
-.btn-icon--green:hover { background: rgba(57, 255, 20, 0.14); }
+.btn-icon--green:hover { background: #0c2e0f; }
 
 .btn-primary {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   padding: 10px 20px;
-  background: rgba(57, 255, 20, 0.1);
+  background: #081d09;
   border: 1px solid var(--vostok-border-g);
   border-radius: var(--radius-md);
   color: var(--vostok-green);
@@ -165,7 +189,7 @@ html, body, #root {
   transition: all 0.15s;
   box-shadow: var(--shadow-glow-g);
 }
-.btn-primary:hover  { background: rgba(57, 255, 20, 0.18); }
+.btn-primary:hover  { background: #0c2e0f; }
 .btn-primary:active { transform: scale(0.96); }
 
 /* --- GLOW INDICATORS --- */
@@ -205,7 +229,7 @@ html, body, #root {
 /* --- DROP ZONE --- */
 .drop-zone {
   border: 2px dashed var(--vostok-border);
-  border-radius: var(--radius-xl);
+  border-radius: 8px;
   transition: border-color 0.2s, background 0.2s;
 }
 .drop-zone.active {
@@ -274,6 +298,9 @@ html, body, #root {
   margin-top: 4px;
   flex-wrap: wrap;
   gap: 12px;
+  padding-left: 40px;
+  box-sizing: border-box;
+  width: 100%;
 }
 
 .buttons-row {
@@ -288,6 +315,71 @@ html, body, #root {
   align-items: center;
   gap: 6px;
   flex-wrap: wrap;
+}
+
+/* --- VOSTOK MECHANICAL TRANSPORT SWITCHES (Noir-Tech Standard) --- */
+.vostok-btn-transport {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: #121212;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-md);
+  color: #ffffff;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  position: relative;
+  overflow: hidden;
+  user-select: none;
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.03);
+}
+
+.vostok-btn-transport:hover:not(:disabled) {
+  background: #1c1c1c;
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 0 16px rgba(255, 255, 255, 0.08);
+}
+
+.vostok-btn-transport:active:not(:disabled) {
+  transform: translateY(0.5px) scale(0.97);
+}
+
+.vostok-btn-transport:disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+}
+
+/* LED e Indicador Activo - Green (DSP_ACTIVE/PLAYBACK) */
+.vostok-btn-transport--active-green {
+  background: #081d09 !important;
+  border-color: var(--vostok-green) !important;
+  color: var(--vostok-green) !important;
+  box-shadow: 0 0 16px rgba(57, 255, 20, 0.15), inset 0 0 4px rgba(57, 255, 20, 0.05) !important;
+}
+
+.vostok-btn-transport--active-green svg {
+  filter: drop-shadow(0 0 4px rgba(57, 255, 20, 0.5));
+}
+
+/* LED e Indicador Activo - Cyan (SYSTEM_ACTIVE/TELEMETRY) */
+.vostok-btn-transport--active-cyan {
+  background: #051b20 !important;
+  border-color: var(--vostok-cyan) !important;
+  color: var(--vostok-cyan) !important;
+  box-shadow: 0 0 16px rgba(0, 245, 255, 0.15), inset 0 0 4px rgba(0, 245, 255, 0.05) !important;
+}
+
+.vostok-btn-transport--active-cyan svg {
+  filter: drop-shadow(0 0 4px rgba(0, 245, 255, 0.5));
 }
 
 .telemetry-row {
@@ -420,4 +512,473 @@ html, body, #root {
 .glitch-group.selected .glitch-icon {
   transform: scale(1.6);
   filter: drop-shadow(0px 0px 4px currentColor);
+}
+
+/* ==========================================================================
+   VOSTOK SIDEBAR INSTRUMENTATION & CONTROLS (Fase 6)
+   ========================================================================== */
+
+/* Displays de Telemetría Acústica de Conteo */
+.vostok-telemetry-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 12px;
+  background: #030507;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 4px; /* Esquina angular tipo rack militar */
+  font-family: var(--font-mono);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+}
+
+.vostok-telemetry-card:hover {
+  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.vostok-telemetry-card--detected {
+  border-left: 3px solid var(--vostok-green);
+}
+
+.vostok-telemetry-card--pending {
+  border-left: 3px solid var(--vostok-cyan);
+}
+
+.vostok-telemetry-card--stable {
+  border-left: 3px solid var(--vostok-green);
+}
+
+/* Botón Maestro Glass CTA Premium: "REPARAR TODO" */
+.vostok-btn-heal-all {
+  width: 100%;
+  background: rgba(57, 255, 20, 0.06);
+  border: 1px solid rgba(57, 255, 20, 0.3);
+  color: var(--vostok-green);
+  border-radius: 4px; /* Esquina angular */
+  padding: 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.vostok-btn-heal-all:hover:not(:disabled) {
+  background: rgba(57, 255, 20, 0.14);
+  border-color: rgba(57, 255, 20, 0.6);
+  color: #fff;
+  box-shadow: 0 0 20px rgba(57, 255, 20, 0.25);
+  transform: translateY(-1px);
+}
+
+.vostok-btn-heal-all:active:not(:disabled) {
+  transform: translateY(0px) scale(0.98);
+}
+
+.vostok-btn-heal-all:disabled {
+  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.2);
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+/* ==========================================================================
+   VOSTOK CUSTOM SELECTS, SLIDERS & CHECKBOXES (Fase 7 & 8)
+   ========================================================================== */
+
+/* --- VOSTOK CUSTOM CHECKBOXES --- */
+.vostok-checkbox {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  background-color: #030507;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+  outline: none;
+}
+
+.vostok-checkbox::after {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 1px;
+  background: transparent;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: scale(0);
+}
+
+.vostok-checkbox:hover {
+  border-color: rgba(255, 255, 255, 0.35);
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+/* Default / Green (Clicks) */
+.vostok-checkbox:checked {
+  border-color: var(--vostok-green);
+  box-shadow: 0 0 8px rgba(57, 255, 20, 0.25);
+}
+.vostok-checkbox:checked::after {
+  background: var(--vostok-green);
+  transform: scale(1);
+  box-shadow: 0 0 6px var(--vostok-green);
+}
+
+/* Explicit green checkbox modifier */
+.vostok-checkbox--green:checked {
+  border-color: var(--vostok-green);
+  box-shadow: 0 0 8px rgba(57, 255, 20, 0.25);
+}
+.vostok-checkbox--green:checked::after {
+  background: var(--vostok-green);
+  transform: scale(1);
+  box-shadow: 0 0 6px var(--vostok-green);
+}
+
+/* Cyan (Dropouts & Hum) */
+.vostok-checkbox--cyan:checked {
+  border-color: var(--vostok-cyan);
+  box-shadow: 0 0 8px rgba(0, 255, 255, 0.25);
+}
+.vostok-checkbox--cyan:checked::after {
+  background: var(--vostok-cyan);
+  transform: scale(1);
+  box-shadow: 0 0 6px var(--vostok-cyan);
+}
+
+/* Blue (Hiss) */
+.vostok-checkbox--blue:checked {
+  border-color: var(--vostok-blue);
+  box-shadow: 0 0 8px rgba(46, 102, 255, 0.25);
+}
+.vostok-checkbox--blue:checked::after {
+  background: var(--vostok-blue);
+  transform: scale(1);
+  box-shadow: 0 0 6px var(--vostok-blue);
+}
+
+/* Pink (Distortion) */
+.vostok-checkbox--pink:checked {
+  border-color: var(--vostok-pink);
+  box-shadow: 0 0 8px rgba(255, 81, 141, 0.25);
+}
+.vostok-checkbox--pink:checked::after {
+  background: var(--vostok-pink);
+  transform: scale(1);
+  box-shadow: 0 0 6px var(--vostok-pink);
+}
+
+/* --- VOSTOK CUSTOM SELECT DROPDOWNS --- */
+.vostok-select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-color: #030507;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.85);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 6px 24px 6px 10px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='rgba(255,255,255,0.4)' stroke-width='2.5'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19.5 8.25l-7.5 7.5-7.5-7.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 12px 12px;
+  outline: none;
+}
+
+.vostok-select:hover {
+  border-color: rgba(255, 255, 255, 0.25);
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+.vostok-select:focus {
+  border-color: var(--vostok-cyan);
+  box-shadow: 0 0 8px rgba(0, 255, 255, 0.25);
+}
+
+.vostok-select--cyan {
+  border-color: rgba(0, 255, 255, 0.2);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='rgba(0,255,255,0.6)' stroke-width='2.5'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19.5 8.25l-7.5 7.5-7.5-7.5'/%3E%3C/svg%3E");
+}
+
+.vostok-select--cyan:hover {
+  border-color: rgba(0, 255, 255, 0.45);
+}
+
+.vostok-select--cyan:focus {
+  border-color: var(--vostok-cyan);
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+}
+
+.vostok-select option {
+  background-color: #0c1015;
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 6px;
+}
+
+/* --- VOSTOK CUSTOM RANGE SLIDERS --- */
+.slider-cyan {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 1px;
+  outline: none;
+  transition: background 0.2s ease;
+}
+
+.slider-cyan:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.slider-cyan::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--vostok-cyan);
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 0 6px var(--vostok-cyan);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  margin-top: -4px;
+}
+
+.slider-cyan::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 2px;
+  cursor: pointer;
+  border-radius: 1px;
+}
+
+.slider-cyan:hover::-webkit-slider-thumb {
+  transform: scale(1.2);
+  box-shadow: 0 0 10px var(--vostok-cyan), 0 0 15px rgba(0, 255, 255, 0.4);
+}
+
+.slider-cyan:active::-webkit-slider-thumb {
+  transform: scale(1.3);
+  box-shadow: 0 0 12px var(--vostok-cyan), 0 0 20px rgba(0, 255, 255, 0.6);
+}
+
+.slider-cyan::-moz-range-thumb {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--vostok-cyan);
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 0 6px var(--vostok-cyan);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.slider-cyan::-moz-range-track {
+  width: 100%;
+  height: 2px;
+  cursor: pointer;
+  background: transparent;
+  border-radius: 1px;
+}
+
+.slider-cyan:hover::-moz-range-thumb {
+  transform: scale(1.2);
+  box-shadow: 0 0 10px var(--vostok-cyan), 0 0 15px rgba(0, 255, 255, 0.4);
+}
+
+.slider-cyan:active::-moz-range-thumb {
+  transform: scale(1.3);
+  box-shadow: 0 0 12px var(--vostok-cyan), 0 0 20px rgba(0, 255, 255, 0.6);
+}
+
+/* Green Sliders */
+.slider-green {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 1px;
+  outline: none;
+  transition: background 0.2s ease;
+}
+
+.slider-green:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.slider-green::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--vostok-green);
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 0 6px var(--vostok-green);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  margin-top: -4px;
+}
+
+.slider-green::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 2px;
+  cursor: pointer;
+  border-radius: 1px;
+}
+
+.slider-green:hover::-webkit-slider-thumb {
+  transform: scale(1.2);
+  box-shadow: 0 0 10px var(--vostok-green), 0 0 15px rgba(57, 255, 20, 0.4);
+}
+
+.slider-green:active::-webkit-slider-thumb {
+  transform: scale(1.3);
+  box-shadow: 0 0 12px var(--vostok-green), 0 0 20px rgba(57, 255, 20, 0.6);
+}
+
+.slider-green::-moz-range-thumb {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--vostok-green);
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 0 6px var(--vostok-green);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.slider-green::-moz-range-track {
+  width: 100%;
+  height: 2px;
+  cursor: pointer;
+  background: transparent;
+  border-radius: 1px;
+}
+
+.slider-green:hover::-moz-range-thumb {
+  transform: scale(1.2);
+  box-shadow: 0 0 10px var(--vostok-green), 0 0 15px rgba(57, 255, 20, 0.4);
+}
+
+.slider-green:active::-moz-range-thumb {
+  transform: scale(1.3);
+  box-shadow: 0 0 12px var(--vostok-green), 0 0 20px rgba(57, 255, 20, 0.6);
+}
+
+/* --- VOSTOK GLASS-TRANSLUCENT ANALYZE BUTTON --- */
+.vostok-btn-analyze {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 20px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: bold;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+}
+
+.vostok-btn-analyze--idle {
+  background: rgba(57, 255, 20, 0.06);
+  border: 1px solid rgba(57, 255, 20, 0.25);
+  color: var(--vostok-green);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.vostok-btn-analyze--idle:hover:not(:disabled) {
+  background: rgba(57, 255, 20, 0.14);
+  border-color: rgba(57, 255, 20, 0.55);
+  color: #fff;
+  box-shadow: 0 0 15px rgba(57, 255, 20, 0.25);
+  transform: translateY(-1px);
+}
+
+.vostok-btn-analyze--idle:active:not(:disabled) {
+  transform: translateY(0px) scale(0.98);
+}
+
+.vostok-btn-analyze--reanalyze {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.5);
+  box-shadow: none;
+}
+
+.vostok-btn-analyze--reanalyze:hover:not(:disabled) {
+  background: rgba(0, 245, 255, 0.06);
+  border-color: rgba(0, 245, 255, 0.35);
+  color: var(--vostok-cyan);
+  box-shadow: 0 0 12px rgba(0, 245, 255, 0.15);
+  transform: translateY(-1px);
+}
+
+.vostok-btn-analyze--reanalyze:active:not(:disabled) {
+  transform: translateY(0px) scale(0.98);
+}
+
+.vostok-btn-analyze--analyzing {
+  background: rgba(0, 245, 255, 0.05);
+  border: 1px solid rgba(0, 245, 255, 0.4);
+  color: var(--vostok-cyan);
+  box-shadow: 0 0 12px rgba(0, 245, 255, 0.2);
+  cursor: wait;
+}
+
+.vostok-btn-analyze:disabled:not(.vostok-btn-analyze--analyzing) {
+  background: rgba(255, 255, 255, 0.01);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  color: rgba(255, 255, 255, 0.15);
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+/* MICRO-OPTIMIZACIONES LED Y GLOW (Noir-Tech Standard) */
+@keyframes led-pulse {
+  0% { opacity: 0.35; transform: scale(0.9); box-shadow: 0 0 2px currentColor; }
+  50% { opacity: 1; transform: scale(1.1); box-shadow: 0 0 8px currentColor; }
+  100% { opacity: 0.35; transform: scale(0.9); box-shadow: 0 0 2px currentColor; }
+}
+
+.vostok-led {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  display: inline-block;
+  animation: led-pulse 2s infinite ease-in-out;
 }

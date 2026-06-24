@@ -10,7 +10,7 @@
  *   Este componente gestiona exclusivamente: viewport, playback y transporte de audio.
  */
 import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
-import { ArrowLeft, Download, FileText, Zap, Cpu, Play, Pause, Square, ChevronDown, Undo, Redo, Maximize2, Minimize2, Settings, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, Download, FileText, Zap, Cpu, Play, Pause, Square, ChevronDown, Undo, Redo, Maximize2, Minimize2, Settings, Eye, EyeOff, Activity, Sparkles, Compass, Move, Crop } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { save } from '@tauri-apps/plugin-dialog';
 import SpectrogramGL from './SpectrogramGL.jsx';
@@ -61,6 +61,8 @@ export default function VostokRestoration({ session, updateSession, onReset }) {
   const [waveformOpacity, setWaveformOpacity] = useState(0.0);
   const [isDetectorExpanded, setIsDetectorExpanded] = useState(true);
   const [isInspectorExpanded, setIsInspectorExpanded] = useState(true);
+  const [isDetectorHovered, setIsDetectorHovered] = useState(false);
+  const [isInspectorHovered, setIsInspectorHovered] = useState(false);
   const [toolMode, setToolMode]                       = useState('navigate'); // 'navigate' | 'select'
   const [isMaximized, setIsMaximized]                 = useState(false);
 
@@ -620,13 +622,13 @@ export default function VostokRestoration({ session, updateSession, onReset }) {
           alignItems: 'center',
           justifyContent: 'center',
           gap: '8px',
-          background: 'rgba(57, 255, 20, 0.05)',
+          background: 'rgba(82, 255, 60, 0.04)',
           padding: '16px',
-          borderRadius: '4px',
-          border: '1px solid rgba(57, 255, 20, 0.2)',
+          borderRadius: 'var(--radius-sm)',
+          border: '1px solid rgba(82, 255, 60, 0.2)',
           textAlign: 'center'
         }}>
-          <span style={{ color: '#39FF14', fontSize: '11px', fontWeight: 900, letterSpacing: '0.05em' }}>
+          <span style={{ color: 'var(--vostok-green)', fontSize: '11px', fontWeight: 900, letterSpacing: '0.05em' }}>
             ✓ ESTA ANOMALÍA YA FUE REPARADA CON ÉXITO
           </span>
           <span style={{ color: 'rgba(255, 255, 255, 0.4)', fontSize: '9px' }}>
@@ -642,12 +644,12 @@ export default function VostokRestoration({ session, updateSession, onReset }) {
       const freq = selectedGlitch.frequency;
       const freqStr = freq ? `${freq.toFixed(1)} Hz` : '50/60 Hz (Fundamental)';
       return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', background: 'rgba(0, 245, 255, 0.02)', padding: '12px', borderRadius: '4px', border: '1px solid rgba(0, 245, 255, 0.15)' }}>
-          <div style={{ fontSize: '10px', color: '#00F5FF', fontWeight: 'bold', letterSpacing: '0.05em' }}>PARÁMETROS DE REPARACIÓN (HUM)</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', background: 'rgba(0, 245, 255, 0.02)', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(0, 245, 255, 0.2)' }}>
+          <div style={{ fontSize: '10px', color: 'var(--vostok-cyan)', fontWeight: 'bold', letterSpacing: '0.05em' }}>PARÁMETROS DE REPARACIÓN (HUM)</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '10px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ color: 'rgba(255,255,255,0.5)' }}>Frecuencia:</span>
-              <span style={{ color: '#00F5FF', fontWeight: 'bold' }}>{freqStr}</span>
+              <span style={{ color: 'var(--vostok-cyan)', fontWeight: 'bold' }}>{freqStr}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ color: 'rgba(255,255,255,0.5)' }}>Algoritmo:</span>
@@ -664,12 +666,12 @@ export default function VostokRestoration({ session, updateSession, onReset }) {
 
     if (type === 'hiss') {
       return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', background: 'rgba(189, 0, 255, 0.02)', padding: '12px', borderRadius: '4px', border: '1px solid rgba(189, 0, 255, 0.15)' }}>
-          <div style={{ fontSize: '10px', color: '#BD00FF', fontWeight: 'bold', letterSpacing: '0.05em' }}>PARÁMETROS DE REPARACIÓN (HISS)</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', background: 'rgba(40, 96, 235, 0.02)', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(40, 96, 235, 0.2)' }}>
+          <div style={{ fontSize: '10px', color: 'var(--vostok-blue)', fontWeight: 'bold', letterSpacing: '0.05em' }}>PARÁMETROS DE REPARACIÓN (HISS)</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '10px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ color: 'rgba(255,255,255,0.5)' }}>Filtro:</span>
-              <span style={{ color: '#BD00FF', fontWeight: 'bold' }}>High-Shelf (5000 Hz)</span>
+              <span style={{ color: 'var(--vostok-blue)', fontWeight: 'bold' }}>High-Shelf (5000 Hz)</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ color: 'rgba(255,255,255,0.5)' }}>Atenuación:</span>
@@ -686,12 +688,12 @@ export default function VostokRestoration({ session, updateSession, onReset }) {
 
     if (type === 'distortion') {
       return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', background: 'rgba(255, 0, 60, 0.02)', padding: '12px', borderRadius: '4px', border: '1px solid rgba(255, 0, 60, 0.15)' }}>
-          <div style={{ fontSize: '10px', color: '#FF003C', fontWeight: 'bold', letterSpacing: '0.05em' }}>PARÁMETROS DE REPARACIÓN (DISTORTION)</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', background: 'rgba(255, 81, 141, 0.02)', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(255, 81, 141, 0.2)' }}>
+          <div style={{ fontSize: '10px', color: 'var(--vostok-pink)', fontWeight: 'bold', letterSpacing: '0.05em' }}>PARÁMETROS DE REPARACIÓN (DISTORTION)</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '10px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ color: 'rgba(255,255,255,0.5)' }}>Reconstrucción:</span>
-              <span style={{ color: '#FF003C', fontWeight: 'bold' }}>Spline Hermite C1-Continua</span>
+              <span style={{ color: 'var(--vostok-pink)', fontWeight: 'bold' }}>Spline Hermite C1-Continua</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ color: 'rgba(255,255,255,0.5)' }}>Atenuación:</span>
@@ -707,33 +709,37 @@ export default function VostokRestoration({ session, updateSession, onReset }) {
     }
 
     // Default for clicks, pops, dropouts, slips
-    let titleColor = '#39FF14';
-    let borderColor = 'rgba(255,255,255,0.04)';
-    let bgColor = 'rgba(255,255,255,0.02)';
+    let titleColor = 'var(--vostok-green)';
+    let borderColor = 'rgba(82, 255, 60, 0.15)';
+    let bgColor = 'rgba(82, 255, 60, 0.02)';
+    let sliderClass = 'slider-green';
     if (type === 'dropout') {
-      titleColor = '#FF9100';
-      borderColor = 'rgba(255, 145, 0, 0.15)';
-      bgColor = 'rgba(255, 145, 0, 0.02)';
+      titleColor = 'var(--vostok-cyan)';
+      borderColor = 'rgba(0, 245, 255, 0.15)';
+      bgColor = 'rgba(0, 245, 255, 0.02)';
+      sliderClass = 'slider-cyan';
     } else if (type === 'slip') {
-      titleColor = '#FFFF00';
-      borderColor = 'rgba(255, 255, 0, 0.15)';
-      bgColor = 'rgba(255, 255, 0, 0.02)';
+      titleColor = 'var(--vostok-green)';
+      borderColor = 'rgba(82, 255, 60, 0.15)';
+      bgColor = 'rgba(82, 255, 60, 0.02)';
+      sliderClass = 'slider-green';
     } else if (type === 'pop') {
-      titleColor = '#8AFF2E';
-      borderColor = 'rgba(138, 255, 46, 0.15)';
-      bgColor = 'rgba(138, 255, 46, 0.02)';
+      titleColor = 'var(--vostok-green)';
+      borderColor = 'rgba(82, 255, 60, 0.15)';
+      bgColor = 'rgba(82, 255, 60, 0.02)';
+      sliderClass = 'slider-green';
     }
 
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', background: bgColor, padding: '12px', borderRadius: '4px', border: `1px solid ${borderColor}` }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', background: bgColor, padding: '12px', borderRadius: 'var(--radius-sm)', border: `1px solid ${borderColor}` }}>
         <div style={{ fontSize: '10px', color: titleColor, fontWeight: 'bold', letterSpacing: '0.05em' }}>
           PARÁMETROS SPLINE CÚBICA ({type.toUpperCase()})
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px' }}>
-            <span>Ventana (muestras):</span>
-            <span style={{ color: titleColor }}>{config.window_size}</span>
+            <span style={{ color: 'rgba(255, 255, 255, 0.6)' }}>Ventana (muestras):</span>
+            <span style={{ color: titleColor, fontWeight: 'bold' }}>{config.window_size}</span>
           </div>
           <input 
             type="range" 
@@ -742,14 +748,15 @@ export default function VostokRestoration({ session, updateSession, onReset }) {
             step="2" 
             value={config.window_size} 
             onChange={e => setConfig(p => ({ ...p, window_size: parseInt(e.target.value) }))} 
-            style={{ accentColor: titleColor, height: '3px', cursor: 'pointer' }} 
+            className={sliderClass}
+            style={{ cursor: 'pointer' }} 
           />
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px' }}>
-            <span>Tensión:</span>
-            <span style={{ color: titleColor }}>{config.tension.toFixed(2)}</span>
+            <span style={{ color: 'rgba(255, 255, 255, 0.6)' }}>Tensión:</span>
+            <span style={{ color: titleColor, fontWeight: 'bold' }}>{config.tension.toFixed(2)}</span>
           </div>
           <input 
             type="range" 
@@ -758,7 +765,8 @@ export default function VostokRestoration({ session, updateSession, onReset }) {
             step="0.1" 
             value={config.tension} 
             onChange={e => setConfig(p => ({ ...p, tension: parseFloat(e.target.value) }))} 
-            style={{ accentColor: titleColor, height: '3px', cursor: 'pointer' }} 
+            className={sliderClass}
+            style={{ cursor: 'pointer' }} 
           />
         </div>
       </div>
@@ -772,47 +780,259 @@ export default function VostokRestoration({ session, updateSession, onReset }) {
 
   // ── RENDER ──
   return (
-    <div className="workspace-container" style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#010101', color: '#fff', fontFamily: 'JetBrains Mono, monospace', overflow: 'hidden' }}>
+    <div className="workspace-container grid-bg crt-scanlines" style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: 'var(--vostok-black)', color: '#fff', fontFamily: 'var(--font-ui)', overflow: 'hidden' }}>
+      <div className="app-noise-overlay" />
 
       {/* HEADER QUIRÚRGICO DE NAVEGACIÓN */}
       {!isMaximized && (
-        <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 24px', borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'rgba(1,1,1,0.8)', backdropFilter: 'blur(10px)', zIndex: 10 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <button onClick={onReset} className="btn-icon" style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', padding: 4 }}>
-              <ArrowLeft style={{ width: 18, height: 18 }} />
+        <header style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          padding: '12px 16px', 
+          borderBottom: '1px solid rgba(255, 255, 255, 0.06)', 
+          background: '#04070a', 
+          zIndex: 10 
+        }}>
+          {/* IZQUIERDA: Marca + Botón de Retorno Enmarcado */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <button 
+              onClick={onReset} 
+              className="btn-icon" 
+              style={{ 
+                background: 'rgba(255, 255, 255, 0.02)', 
+                border: '1px solid rgba(255, 255, 255, 0.08)', 
+                color: 'rgba(255, 255, 255, 0.5)', 
+                cursor: 'pointer', 
+                padding: '5px',
+                borderRadius: '3px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.15s ease',
+                width: '26px',
+                height: '26px'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = 'var(--vostok-green)';
+                e.currentTarget.style.color = '#fff';
+                e.currentTarget.style.backgroundColor = 'rgba(57, 255, 20, 0.03)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                e.currentTarget.style.color = 'rgba(255, 255, 255, 0.5)';
+                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.02)';
+              }}
+              title="Volver a la vista de carga"
+            >
+              <ArrowLeft style={{ width: 14, height: 14 }} />
             </button>
-            <div>
-              <h1 style={{ fontSize: '13px', fontWeight: 900, margin: 0, letterSpacing: '0.05em', color: '#fff' }}>VOSTOK RESTORATION v1</h1>
-              <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', margin: '2px 0 0 0' }}>File: <span style={{ color: '#39FF14' }}>{fileName}</span></p>
+            <div style={{ position: 'relative', paddingBottom: '2px' }}>
+              <h1 style={{ 
+                fontSize: '11px', 
+                fontWeight: 900, 
+                margin: 0, 
+                letterSpacing: '0.15em', 
+                color: '#fff', 
+                fontFamily: 'var(--font-mono)' 
+              }}>
+                VOSTOK <span style={{ color: 'var(--vostok-green)' }}>//</span> RESTORATION v1
+              </h1>
+              {/* Línea de anclaje de marca */}
+              <div style={{ 
+                position: 'absolute', 
+                bottom: '-4px', 
+                left: 0, 
+                width: '32px', 
+                height: '2px', 
+                backgroundColor: 'var(--vostok-green)' 
+              }} />
+              <p style={{ 
+                fontSize: '9px', 
+                color: 'rgba(255, 255, 255, 0.3)', 
+                margin: '6px 0 0 0', 
+                fontWeight: 'bold',
+                fontFamily: 'var(--font-mono)'
+              }}>
+                FILE: <span style={{ color: 'rgba(255, 255, 255, 0.7)' }}>{fileName}</span>
+              </p>
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <button onClick={undo} disabled={status !== 'ready'} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: '4px', padding: '6px 12px', fontSize: '11px', fontWeight: 'bold', cursor: status === 'ready' ? 'pointer' : 'not-allowed', opacity: status === 'ready' ? 1 : 0.5 }} title="Deshacer (Ctrl+Z)">
-              <Undo style={{ width: 14, height: 14 }} /> Deshacer
+          {/* CENTRO: Monitoreo de Telemetría del Motor DSP */}
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '8px', 
+            padding: '4px 10px', 
+            backgroundColor: 'rgba(255, 255, 255, 0.02)', 
+            border: '1px solid rgba(255, 255, 255, 0.04)', 
+            borderRadius: '3px',
+            userSelect: 'none'
+          }}>
+            <span className="vostok-led" style={{ color: 'var(--vostok-cyan)', backgroundColor: 'var(--vostok-cyan)' }} />
+            <span style={{ 
+              fontSize: '8px', 
+              fontWeight: 'bold', 
+              letterSpacing: '0.08em', 
+              color: 'rgba(255, 255, 255, 0.4)', 
+              fontFamily: 'var(--font-mono)' 
+            }}>
+              CORE STATE: ACTIVE // 64-BIT DSP // BUFFER STABLE
+            </span>
+          </div>
+
+          {/* DERECHA: Botones de Acción en Monospace (Rack Switches) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button 
+              onClick={undo} 
+              disabled={status !== 'ready'} 
+              style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '6px', 
+                background: '#090d10', 
+                border: '1px solid rgba(255, 255, 255, 0.08)', 
+                color: status === 'ready' ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.2)', 
+                borderRadius: '3px', 
+                padding: '5px 10px', 
+                fontSize: '10px', 
+                fontWeight: 'bold', 
+                fontFamily: 'var(--font-mono)',
+                letterSpacing: '0.05em',
+                cursor: status === 'ready' ? 'pointer' : 'not-allowed', 
+                opacity: status === 'ready' ? 1 : 0.4, 
+                transition: 'all 0.15s ease' 
+              }} 
+              title="Deshacer (Ctrl+Z)" 
+              onMouseEnter={(e) => { 
+                if (status === 'ready') {
+                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)'; 
+                  e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.02)';
+                }
+              }} 
+              onMouseLeave={(e) => { 
+                if (status === 'ready') {
+                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)'; 
+                  e.currentTarget.style.backgroundColor = '#090d10';
+                }
+              }}
+            >
+              <Undo style={{ width: 12, height: 12 }} /> DESHACER
             </button>
-            <button onClick={redo} disabled={status !== 'ready'} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: '4px', padding: '6px 12px', fontSize: '11px', fontWeight: 'bold', cursor: status === 'ready' ? 'pointer' : 'not-allowed', opacity: status === 'ready' ? 1 : 0.5 }} title="Rehacer (Ctrl+Y / Ctrl+Shift+Z)">
-              <Redo style={{ width: 14, height: 14 }} /> Rehacer
+            
+            <button 
+              onClick={redo} 
+              disabled={status !== 'ready'} 
+              style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '6px', 
+                background: '#090d10', 
+                border: '1px solid rgba(255, 255, 255, 0.08)', 
+                color: status === 'ready' ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.2)', 
+                borderRadius: '3px', 
+                padding: '5px 10px', 
+                fontSize: '10px', 
+                fontWeight: 'bold', 
+                fontFamily: 'var(--font-mono)',
+                letterSpacing: '0.05em',
+                cursor: status === 'ready' ? 'pointer' : 'not-allowed', 
+                opacity: status === 'ready' ? 1 : 0.4, 
+                transition: 'all 0.15s ease' 
+              }} 
+              title="Rehacer (Ctrl+Y / Ctrl+Shift+Z)" 
+              onMouseEnter={(e) => { 
+                if (status === 'ready') {
+                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)'; 
+                  e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.02)';
+                }
+              }} 
+              onMouseLeave={(e) => { 
+                if (status === 'ready') {
+                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)'; 
+                  e.currentTarget.style.backgroundColor = '#090d10';
+                }
+              }}
+            >
+              <Redo style={{ width: 12, height: 12 }} /> REHACER
             </button>
-            <button onClick={handleExportFile} disabled={status !== 'ready'} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: '4px', padding: '6px 12px', fontSize: '11px', fontWeight: 'bold', cursor: status === 'ready' ? 'pointer' : 'not-allowed', opacity: status === 'ready' ? 1 : 0.5 }}>
-              <Download style={{ width: 14, height: 14 }} /> EXPORTAR WAV
+            
+            <button 
+              onClick={handleExportFile} 
+              disabled={status !== 'ready'} 
+              style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '6px', 
+                background: '#090d10', 
+                border: '1px solid rgba(255, 255, 255, 0.08)', 
+                color: status === 'ready' ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.2)', 
+                borderRadius: '3px', 
+                padding: '5px 10px', 
+                fontSize: '10px', 
+                fontWeight: 'bold', 
+                fontFamily: 'var(--font-mono)',
+                letterSpacing: '0.05em',
+                cursor: status === 'ready' ? 'pointer' : 'not-allowed', 
+                opacity: status === 'ready' ? 1 : 0.4, 
+                transition: 'all 0.15s ease' 
+              }} 
+              onMouseEnter={(e) => { 
+                if (status === 'ready') {
+                  e.currentTarget.style.borderColor = 'var(--vostok-green)'; 
+                  e.currentTarget.style.color = 'var(--vostok-green)';
+                  e.currentTarget.style.backgroundColor = 'rgba(57, 255, 20, 0.03)';
+                }
+              }} 
+              onMouseLeave={(e) => { 
+                if (status === 'ready') {
+                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)'; 
+                  e.currentTarget.style.color = 'rgba(255, 255, 255, 0.8)';
+                  e.currentTarget.style.backgroundColor = '#090d10';
+                }
+              }}
+            >
+              <Download style={{ width: 12, height: 12 }} /> EXPORTAR WAV
             </button>
+            
             <button
               onClick={handleDownloadReport}
               disabled={status !== 'ready' || glitches.length === 0}
               title={glitches.length === 0 ? 'Ejecuta un análisis primero' : 'Descargar reporte de análisis forense (.txt)'}
               style={{
-                display: 'flex', alignItems: 'center', gap: '8px',
-                background: glitches.length > 0 ? 'rgba(0,245,255,0.06)' : 'rgba(255,255,255,0.03)',
-                border: `1px solid ${glitches.length > 0 ? 'rgba(0,245,255,0.35)' : 'rgba(255,255,255,0.1)'}`,
-                color: glitches.length > 0 ? '#00F5FF' : 'rgba(255,255,255,0.4)',
-                borderRadius: '4px', padding: '6px 12px', fontSize: '11px', fontWeight: 'bold',
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '6px',
+                background: glitches.length > 0 ? 'rgba(0, 245, 255, 0.03)' : '#090d10',
+                border: `1px solid ${glitches.length > 0 ? 'rgba(0, 245, 255, 0.25)' : 'rgba(255, 255, 255, 0.08)'}`,
+                color: glitches.length > 0 ? 'var(--vostok-cyan)' : 'rgba(255, 255, 255, 0.3)',
+                borderRadius: '3px', 
+                padding: '5px 10px', 
+                fontSize: '10px', 
+                fontWeight: 'bold',
+                fontFamily: 'var(--font-mono)',
+                letterSpacing: '0.05em',
                 cursor: (status === 'ready' && glitches.length > 0) ? 'pointer' : 'not-allowed',
-                opacity: (status === 'ready' && glitches.length > 0) ? 1 : 0.5,
+                opacity: (status === 'ready' && glitches.length > 0) ? 1 : 0.4,
                 transition: 'all 0.15s ease',
               }}
+              onMouseEnter={(e) => { 
+                if (status === 'ready' && glitches.length > 0) {
+                  e.currentTarget.style.backgroundColor = 'rgba(0, 245, 255, 0.08)'; 
+                  e.currentTarget.style.borderColor = 'var(--vostok-cyan)';
+                  e.currentTarget.style.color = '#fff';
+                }
+              }}
+              onMouseLeave={(e) => { 
+                if (status === 'ready' && glitches.length > 0) {
+                  e.currentTarget.style.backgroundColor = 'rgba(0, 245, 255, 0.03)'; 
+                  e.currentTarget.style.borderColor = 'rgba(0, 245, 255, 0.25)';
+                  e.currentTarget.style.color = 'var(--vostok-cyan)';
+                }
+              }}
             >
-              <FileText style={{ width: 14, height: 14 }} /> REPORTE
+              <FileText style={{ width: 12, height: 12 }} /> REPORTE
             </button>
           </div>
         </header>
@@ -822,10 +1042,10 @@ export default function VostokRestoration({ session, updateSession, onReset }) {
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden', padding: isMaximized ? '8px' : '16px', gap: isMaximized ? '8px' : '16px' }}>
 
         {/* PANEL CENTRAL: ESPECTROGRAMA Y LÍNEA DE TIEMPO */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px', height: '100%', overflow: 'hidden' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: isMaximized ? '8px' : '16px', height: '100%', overflow: 'hidden' }}>
 
           {/* BENTO BOX: VISUALIZADOR CORE CON CONTROL VERTICAL EXTERNO */}
-          <div style={{ flex: 1, display: 'flex', gap: '12px', overflow: 'hidden' }}>
+          <div style={{ flex: 1, display: 'flex', gap: '12px', overflow: 'hidden', paddingTop: '0px', minHeight: 0 }}>
 
             {/* Contenedor alineador del Vertical Scrubber para coincidir exactamente con el WebGL Canvas del espectrograma */}
             <div style={{ display: 'flex', flexDirection: 'column', paddingTop: '25px', paddingBottom: '33px', height: '100%', boxSizing: 'border-box' }}>
@@ -833,253 +1053,281 @@ export default function VostokRestoration({ session, updateSession, onReset }) {
             </div>
 
             {/* CONTENEDOR DEL ESPECTROGRAMA */}
-            <div style={{ flex: 1, background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '6px', position: 'relative', overflow: 'hidden' }}>
+            <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column' }}>
               
-              {/* Botón Flotante para Maximizar/Pantalla Completa */}
-              <button
-                onClick={() => setIsMaximized(!isMaximized)}
-                style={{
-                  position: 'absolute',
-                  top: '32px',
-                  right: '10px',
-                  zIndex: 200,
-                  backgroundColor: 'rgba(1, 1, 1, 0.75)',
-                  backdropFilter: 'blur(8px)',
-                  border: '1px solid rgba(57, 255, 20, 0.25)',
-                  borderRadius: '4px',
-                  padding: '6px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#fff',
-                  transition: 'all 0.15s ease',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.5)'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = '#39FF14';
-                  e.currentTarget.style.boxShadow = '0 0 8px rgba(57, 255, 20, 0.4)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = 'rgba(57, 255, 20, 0.25)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.5)';
-                }}
-                title={isMaximized ? 'Restaurar interfaz' : 'Pantalla completa / Maximizar espectrograma'}
-              >
-                {isMaximized ? <Minimize2 style={{ width: 14, height: 14, color: '#39FF14' }} /> : <Maximize2 style={{ width: 14, height: 14, color: '#fff' }} />}
-              </button>
-              {!currentMatrix ? (
-                <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', background: '#010101' }}>
-                  <Cpu className="spinning" style={{ width: 24, height: 24, color: '#39FF14' }} />
-                  <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', letterSpacing: '0.1em' }}>
-                    {globalHealingProgress !== null
-                      ? `RESTRUCTURANDO SEÑAL NATURALEZA (${globalHealingProgress}%)`
-                      : 'INICIALIZANDO MOTOR GRÁFICO WEBGL...'}
-                  </span>
-                </div>
-              ) : (
-                <div style={{ width: '100%', height: '100%', position: 'relative' }}>
-                  <SpectrogramGL
-                    matrix={currentMatrix}
-                    frames={currentFrames}
-                    bins={currentBins}
-                    sampleRate={sampleRate}
-                    viewStart={viewStart}
-                    viewEnd={viewEnd}
-                    viewYStart={viewYStart}
-                    viewYEnd={viewYEnd}
-                    isLocalHD={spectrogramMode === 'local_hd'}
-                    glitches={visibleGlitches}
-                    onGlitchClick={selectGlitch}
-                    onGlitchContextMenu={discardGlitch}
-                    selectedGlitchIdx={selectedGlitchIdx}
-                    onViewportChange={handleViewportChange}
-                    onRenderComplete={handleRenderComplete}
-                    matrixVersion={matrixVersion}
-                    duration={duration}
-                    isZoomed={isZoomed}
-                    dbFloor={dbFloor}
-                    dbCeiling={dbCeiling}
-                    scaleMode={scaleMode}
-                    waveformOpacity={waveformOpacity}
-                    waveformEnvelope={waveformEnvelope}
-                    setDbFloor={setDbFloor}
-                    setDbCeiling={setDbCeiling}
-                    setScaleMode={setScaleMode}
-                    setWaveformOpacity={setWaveformOpacity}
-                    toolMode={toolMode}
-                    healSelection={healSelection}
-                    channels={channels}
-                    playheadTime={playheadTime}
-                    onSeek={handleSeek}
-                    loopStart={loopStart}
-                    loopEnd={loopEnd}
-                    onLoopRangeChange={(start, end) => updateSession({ loopStart: start, loopEnd: end })}
-                    onScanLoop={scanAudio}
-                  />
+              <div className="glass-panel" style={{ flex: 1, position: 'relative', overflow: 'hidden', borderRadius: '0px', padding: 0, display: 'flex', flexDirection: 'column' }}>
+                
+                {/* Botón Flotante para Maximizar/Pantalla Completa */}
+                <button
+                  onClick={() => setIsMaximized(!isMaximized)}
+                  style={{
+                    position: 'absolute',
+                    top: '10px',
+                    right: '10px',
+                    zIndex: 200,
+                    backgroundColor: 'rgba(6, 9, 12, 0.75)',
+                    backdropFilter: 'var(--blur-glass)',
+                    border: '1px solid rgba(82, 255, 60, 0.25)',
+                    borderRadius: '4px',
+                    padding: '6px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#fff',
+                    transition: 'all 0.15s ease',
+                    boxShadow: 'var(--shadow-panel)'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--vostok-green)';
+                    e.currentTarget.style.boxShadow = '0 0 10px rgba(82, 255, 60, 0.4)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = 'rgba(82, 255, 60, 0.25)';
+                    e.currentTarget.style.boxShadow = 'var(--shadow-panel)';
+                  }}
+                  title={isMaximized ? 'Restaurar interfaz' : 'Pantalla completa / Maximizar espectrograma'}
+                >
+                  {isMaximized ? <Minimize2 style={{ width: 14, height: 14, color: 'var(--vostok-green)' }} /> : <Maximize2 style={{ width: 14, height: 14, color: '#fff' }} />}
+                </button>
+                {!currentMatrix ? (
+                  <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', background: 'var(--vostok-black)' }}>
+                    <Cpu className="spinning" style={{ width: 24, height: 24, color: 'var(--vostok-green)' }} />
+                    <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', letterSpacing: '0.1em' }}>
+                      {globalHealingProgress !== null
+                        ? `RESTRUCTURANDO SEÑAL NATURALEZA (${globalHealingProgress}%)`
+                        : 'INICIALIZANDO MOTOR GRÁFICO WEBGL...'}
+                    </span>
+                  </div>
+                ) : (
+                  <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+                    <SpectrogramGL
+                      matrix={currentMatrix}
+                      frames={currentFrames}
+                      bins={currentBins}
+                      sampleRate={sampleRate}
+                      viewStart={viewStart}
+                      viewEnd={viewEnd}
+                      viewYStart={viewYStart}
+                      viewYEnd={viewYEnd}
+                      isLocalHD={spectrogramMode === 'local_hd'}
+                      glitches={visibleGlitches}
+                      onGlitchClick={selectGlitch}
+                      onGlitchContextMenu={discardGlitch}
+                      selectedGlitchIdx={selectedGlitchIdx}
+                      onViewportChange={handleViewportChange}
+                      onRenderComplete={handleRenderComplete}
+                      matrixVersion={matrixVersion}
+                      duration={duration}
+                      isZoomed={isZoomed}
+                      dbFloor={dbFloor}
+                      dbCeiling={dbCeiling}
+                      scaleMode={scaleMode}
+                      waveformOpacity={waveformOpacity}
+                      waveformEnvelope={waveformEnvelope}
+                      setDbFloor={setDbFloor}
+                      setDbCeiling={setDbCeiling}
+                      setScaleMode={setScaleMode}
+                      setWaveformOpacity={setWaveformOpacity}
+                      toolMode={toolMode}
+                      healSelection={healSelection}
+                      channels={channels}
+                      playheadTime={playheadTime}
+                      onSeek={handleSeek}
+                      loopStart={loopStart}
+                      loopEnd={loopEnd}
+                      onLoopRangeChange={(start, end) => updateSession({ loopStart: start, loopEnd: end })}
+                      onScanLoop={scanAudio}
+                    />
 
-                  {/* OVERLAY DE CARGA Y RESTAURACIÓN EN EL ESPECTROGRAMA */}
-                  {(status === 'healing' || status === 'analyzing') && (
-                    <div style={{
-                      position: 'absolute',
-                      inset: 0,
-                      backgroundColor: 'rgba(1, 1, 1, 0.4)',
-                      backdropFilter: 'blur(6px)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '16px',
-                      zIndex: 10,
-                      borderRadius: '4px',
-                      pointerEvents: 'auto',
-                    }}>
+                    {/* OVERLAY DE CARGA Y RESTAURACIÓN EN EL ESPECTROGRAMA */}
+                    {(status === 'healing' || status === 'analyzing') && (
                       <div style={{
+                        position: 'absolute',
+                        inset: 0,
+                        backgroundColor: 'rgba(10, 14, 18, 0.4)',
+                        backdropFilter: 'blur(6px)',
                         display: 'flex',
                         flexDirection: 'column',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        gap: '12px',
-                        padding: '24px 40px',
-                        background: 'rgba(1, 1, 1, 0.85)',
-                        border: '1px solid rgba(57, 255, 20, 0.2)',
-                        boxShadow: '0 0 30px rgba(57, 255, 20, 0.1)',
+                        gap: '16px',
+                        zIndex: 10,
+                        borderRadius: '4px',
+                        pointerEvents: 'auto',
+                     }}>
+                        <div style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '12px',
+                          padding: '24px 40px',
+                          background: 'rgba(10, 14, 18, 0.85)',
+                          border: '1px solid rgba(82, 255, 60, 0.2)',
+                          boxShadow: '0 0 30px rgba(82, 255, 60, 0.1)',
+                          borderRadius: '8px',
+                        }}>
+                          <Cpu className="spinning" style={{ width: 32, height: 32, color: 'var(--vostok-green)', filter: 'drop-shadow(0 0 8px rgba(82, 255, 60, 0.6))' }} />
+                          <span style={{ fontSize: '11px', color: '#fff', fontWeight: 900, letterSpacing: '0.2em', textAlign: 'center', fontFamily: 'JetBrains Mono, monospace' }}>
+                            {status === 'healing' 
+                              ? `RECONSTRUYENDO SEÑAL...` 
+                              : `ANALIZANDO AUDIO...`}
+                          </span>
+                          {status === 'healing' && globalHealingProgress !== null && (
+                            <div style={{ width: '120px', height: '3px', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '2px', overflow: 'hidden', marginTop: '4px' }}>
+                              <div style={{ width: `${globalHealingProgress}%`, height: '100%', backgroundColor: 'var(--vostok-green)', transition: 'width 0.2s ease', boxShadow: '0 0 6px var(--vostok-green)' }} />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* FLOATING OVERLAY PARA EL GLITCH SELECCIONADO */}
+                    {selectedGlitch && (
+                      <div style={{
+                        position: 'absolute',
+                        left: '20px',
+                        bottom: '20px',
+                        width: '280px',
+                        backgroundColor: 'rgba(10, 14, 18, 0.92)',
+                        backdropFilter: 'blur(12px)',
+                        border: '1px solid rgba(82, 255, 60, 0.4)',
                         borderRadius: '8px',
+                        padding: '14px',
+                        zIndex: 100,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '12px',
+                        boxShadow: '0 12px 30px rgba(0,0,0,0.8), 0 0 15px rgba(82, 255, 60, 0.15)',
+                        fontFamily: 'JetBrains Mono, monospace',
                       }}>
-                        <Cpu className="spinning" style={{ width: 32, height: 32, color: '#39FF14', filter: 'drop-shadow(0 0 8px rgba(57, 255, 20, 0.6))' }} />
-                        <span style={{ fontSize: '11px', color: '#fff', fontWeight: 900, letterSpacing: '0.2em', textAlign: 'center', fontFamily: 'JetBrains Mono, monospace' }}>
-                          {status === 'healing' 
-                            ? `RECONSTRUYENDO SEÑAL...` 
-                            : `ANALIZANDO AUDIO...`}
-                        </span>
-                        {status === 'healing' && globalHealingProgress !== null && (
-                          <div style={{ width: '120px', height: '3px', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '2px', overflow: 'hidden', marginTop: '4px' }}>
-                            <div style={{ width: `${globalHealingProgress}%`, height: '100%', backgroundColor: '#39FF14', transition: 'width 0.2s ease', boxShadow: '0 0 6px #39FF14' }} />
-                          </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '6px' }}>
+                          <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.4)', fontWeight: 'bold' }}>DETALLES DEL EVENTO</div>
+                          <button 
+                            onClick={() => selectGlitch(null)}
+                            style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold', padding: 0, transition: 'color 0.15s ease' }}
+                            onMouseEnter={e => e.currentTarget.style.color = 'var(--vostok-green)'}
+                            onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.4)'}
+                          >
+                            ✕
+                          </button>
+                        </div>
+
+                        <table style={{ width: '100%', fontSize: '10px', borderCollapse: 'collapse' }}>
+                          <tbody>
+                            <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.02)' }}>
+                              <td style={{ padding: '4px 0', color: 'rgba(255,255,255,0.4)' }}>Muestra Index:</td>
+                              <td style={{ padding: '4px 0', textAlign: 'right', fontWeight: 'bold', color: '#fff' }}>{selectedGlitch.sample_index}</td>
+                            </tr>
+                            <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.02)' }}>
+                              <td style={{ padding: '4px 0', color: 'rgba(255,255,255,0.4)' }}>Tiempo Físico:</td>
+                              <td style={{ padding: '4px 0', textAlign: 'right', fontWeight: 'bold', color: 'var(--vostok-green)' }}>{(selectedGlitch.sample_index / sampleRate).toFixed(4)}s</td>
+                            </tr>
+                            <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.02)' }}>
+                              <td style={{ padding: '4px 0', color: 'rgba(255,255,255,0.4)' }}>Tipo Anomalía:</td>
+                              <td style={{ padding: '4px 0', textAlign: 'right', fontWeight: 'bold', color: 'var(--vostok-green)' }}>{(selectedGlitch.event_type || 'click').toUpperCase()}</td>
+                            </tr>
+                            <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.02)' }}>
+                              <td style={{ padding: '4px 0', color: 'rgba(255,255,255,0.4)' }}>Canal:</td>
+                              <td style={{ padding: '4px 0', textAlign: 'right', fontWeight: 'bold', color: 'var(--vostok-green)' }}>
+                                {selectedGlitch.channel === 1 ? 'Derecho (R)' : selectedGlitch.channel === 0 ? 'Izquierdo (L)' : selectedGlitch.channel === 2 ? 'Ambos' : `Ch ${selectedGlitch.channel}`}
+                              </td>
+                            </tr>
+                            <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.02)' }}>
+                              <td style={{ padding: '4px 0', color: 'rgba(255,255,255,0.4)' }}>Magnitud (ΔV):</td>
+                              <td style={{ padding: '4px 0', textAlign: 'right', fontWeight: 'bold', color: 'var(--vostok-cyan)' }}>{selectedGlitch.amplitude_delta.toFixed(5)}</td>
+                            </tr>
+                            <tr>
+                              <td style={{ padding: '4px 0', color: 'rgba(255,255,255,0.4)' }}>Estado:</td>
+                              <td style={{ padding: '4px 0', textAlign: 'right', fontWeight: 'bold', color: selectedGlitch.repaired ? 'var(--vostok-green)' : 'var(--vostok-cyan)' }}>
+                                {selectedGlitch.repaired ? 'REPARADO' : 'DAÑADO'}
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+
+                        {renderInspectorParameters()}
+
+                        {!selectedGlitch.repaired && (
+                          <button
+                            onClick={() => healGlitch(glitches[selectedGlitch.internalIdx], selectedGlitch.internalIdx)}
+                            disabled={healingProgress[selectedGlitch.internalIdx] !== undefined}
+                            style={{
+                              width: '100%',
+                              background: 'none',
+                              border: '1px solid var(--vostok-green)',
+                              color: 'var(--vostok-green)',
+                              borderRadius: '4px',
+                              padding: '8px',
+                              fontSize: '10px',
+                              fontWeight: 900,
+                              cursor: 'pointer',
+                              fontFamily: 'JetBrains Mono, monospace',
+                              marginTop: '4px',
+                              transition: 'all 0.15s ease',
+                            }}
+                          >
+                            {healingProgress[selectedGlitch.internalIdx] !== undefined
+                              ? `REPARANDO... (${healingProgress[selectedGlitch.internalIdx]}%)`
+                              : 'REPARAR EVENTO'}
+                          </button>
                         )}
                       </div>
-                    </div>
-                  )}
-                  
-                  {/* FLOATING OVERLAY PARA EL GLITCH SELECCIONADO */}
-                  {selectedGlitch && (
-                    <div style={{
-                      position: 'absolute',
-                      left: '20px',
-                      bottom: '20px',
-                      width: '280px',
-                      backgroundColor: 'rgba(1, 1, 1, 0.92)',
-                      backdropFilter: 'blur(12px)',
-                      border: '1px solid rgba(57, 255, 20, 0.4)',
-                      borderRadius: '6px',
-                      padding: '14px',
-                      zIndex: 100,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '12px',
-                      boxShadow: '0 4px 20px rgba(0,0,0,0.8), 0 0 15px rgba(57,255,20,0.15)',
-                      fontFamily: 'JetBrains Mono, monospace',
-                    }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '6px' }}>
-                        <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.4)', fontWeight: 'bold' }}>DETALLES DEL EVENTO</div>
-                        <button 
-                          onClick={() => selectGlitch(null)}
-                          style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold', padding: 0, transition: 'color 0.15s ease' }}
-                          onMouseEnter={e => e.currentTarget.style.color = '#39FF14'}
-                          onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.4)'}
-                        >
-                          ✕
-                        </button>
-                      </div>
-
-                      <table style={{ width: '100%', fontSize: '10px', borderCollapse: 'collapse' }}>
-                        <tbody>
-                          <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.02)' }}>
-                            <td style={{ padding: '4px 0', color: 'rgba(255,255,255,0.4)' }}>Muestra Index:</td>
-                            <td style={{ padding: '4px 0', textAlign: 'right', fontWeight: 'bold', color: '#fff' }}>{selectedGlitch.sample_index}</td>
-                          </tr>
-                          <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.02)' }}>
-                            <td style={{ padding: '4px 0', color: 'rgba(255,255,255,0.4)' }}>Tiempo Físico:</td>
-                            <td style={{ padding: '4px 0', textAlign: 'right', fontWeight: 'bold', color: '#39FF14' }}>{(selectedGlitch.sample_index / sampleRate).toFixed(4)}s</td>
-                          </tr>
-                          <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.02)' }}>
-                            <td style={{ padding: '4px 0', color: 'rgba(255,255,255,0.4)' }}>Tipo Anomalía:</td>
-                            <td style={{ padding: '4px 0', textAlign: 'right', fontWeight: 'bold', color: '#39FF14' }}>{(selectedGlitch.event_type || 'click').toUpperCase()}</td>
-                          </tr>
-                          <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.02)' }}>
-                            <td style={{ padding: '4px 0', color: 'rgba(255,255,255,0.4)' }}>Canal:</td>
-                            <td style={{ padding: '4px 0', textAlign: 'right', fontWeight: 'bold', color: '#39FF14' }}>
-                              {selectedGlitch.channel === 1 ? 'Derecho (R)' : selectedGlitch.channel === 0 ? 'Izquierdo (L)' : selectedGlitch.channel === 2 ? 'Ambos' : `Ch ${selectedGlitch.channel}`}
-                            </td>
-                          </tr>
-                          <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.02)' }}>
-                            <td style={{ padding: '4px 0', color: 'rgba(255,255,255,0.4)' }}>Magnitud (ΔV):</td>
-                            <td style={{ padding: '4px 0', textAlign: 'right', fontWeight: 'bold', color: '#ff4d00' }}>{selectedGlitch.amplitude_delta.toFixed(5)}</td>
-                          </tr>
-                          <tr>
-                            <td style={{ padding: '4px 0', color: 'rgba(255,255,255,0.4)' }}>Estado:</td>
-                            <td style={{ padding: '4px 0', textAlign: 'right', fontWeight: 'bold', color: selectedGlitch.repaired ? '#39FF14' : '#ff4d00' }}>
-                              {selectedGlitch.repaired ? 'REPARADO' : 'DAÑADO'}
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
-
-                      {renderInspectorParameters()}
-
-                      {!selectedGlitch.repaired && (
-                        <button
-                          onClick={() => healGlitch(glitches[selectedGlitch.internalIdx], selectedGlitch.internalIdx)}
-                          disabled={healingProgress[selectedGlitch.internalIdx] !== undefined}
-                          style={{
-                            width: '100%',
-                            background: 'none',
-                            border: '1px solid #39FF14',
-                            color: '#39FF14',
-                            borderRadius: '4px',
-                            padding: '8px',
-                            fontSize: '10px',
-                            fontWeight: 900,
-                            cursor: 'pointer',
-                            fontFamily: 'JetBrains Mono, monospace',
-                            marginTop: '4px',
-                            transition: 'all 0.15s ease',
-                          }}
-                        >
-                          {healingProgress[selectedGlitch.internalIdx] !== undefined
-                            ? `REPARANDO... (${healingProgress[selectedGlitch.internalIdx]}%)`
-                            : 'REPARAR EVENTO'}
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
           {/* BENTO BOX: CONTROLES DE TRANSPORTE Y SCRUBBER HORIZONTAL */}
-          <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '6px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <TimelineScrubber
-              viewStart={viewStart}
-              viewEnd={viewEnd}
-              onViewportChange={handleViewportChange}
-              playheadTime={playheadTime}
-              onSeek={(percent) => handleSeek(percent * duration)}
-              duration={duration}
-              envelope={waveformEnvelope || []}
-            />
+          <div style={{ padding: isMaximized ? '0px' : '4px 0 0 0', display: 'flex', flexDirection: 'column', gap: isMaximized ? '6px' : '10px', position: 'relative', flexShrink: 0 }}>
+            
+            <div style={{ paddingLeft: '40px', width: '100%', boxSizing: 'border-box' }}>
+              <TimelineScrubber
+                viewStart={viewStart}
+                viewEnd={viewEnd}
+                onViewportChange={handleViewportChange}
+                playheadTime={playheadTime}
+                onSeek={(percent) => handleSeek(percent * duration)}
+                duration={duration}
+                envelope={waveformEnvelope || []}
+              />
+            </div>
+
+            {/* Flat Monospace Section Header aligned to grid */}
+            <div style={{ paddingLeft: '40px', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px', marginBottom: '-2px', userSelect: 'none' }}>
+              <span className="vostok-led" style={{ backgroundColor: 'var(--vostok-cyan)', color: 'var(--vostok-cyan)' }} />
+              <span style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: '9px',
+                fontWeight: 900,
+                letterSpacing: '0.15em',
+                color: 'rgba(255, 255, 255, 0.45)'
+              }}>
+                VOSTOK // SYSTEM_TRANSPORT
+              </span>
+            </div>
 
             <div className="transport-container">
               <div className="buttons-row">
                 {/* Grupo de Transporte: Play/Pause/Stop */}
                 <div className="buttons-group">
-                  <button onClick={handlePlayPause} disabled={status !== 'ready'} style={{ background: isPlaying ? 'rgba(57, 255, 20, 0.1)' : 'rgba(255,255,255,0.03)', border: isPlaying ? '1px solid #39FF14' : '1px solid rgba(255,255,255,0.08)', color: isPlaying ? '#39FF14' : '#fff', padding: '6px 14px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>
-                    {isPlaying ? <Pause style={{ width: 12, height: 12, fill: '#39FF14' }} /> : <Play style={{ width: 12, height: 12, fill: '#fff' }} />}
+                  <button 
+                    onClick={handlePlayPause} 
+                    disabled={status !== 'ready'} 
+                    className={`vostok-btn-transport ${isPlaying ? 'vostok-btn-transport--active-green' : ''}`}
+                  >
+                    {isPlaying ? <Pause style={{ width: 12, height: 12, fill: 'currentColor' }} /> : <Play style={{ width: 12, height: 12, fill: 'currentColor' }} />}
                     {isPlaying ? 'PAUSA' : 'REPRODUCIR'}
                   </button>
-                  <button onClick={handleStop} disabled={status !== 'ready'} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', color: '#fff', padding: '6px 12px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>
-                    <Square style={{ width: 11, height: 11, fill: '#fff' }} /> DETENER
+                  <button 
+                    onClick={handleStop} 
+                    disabled={status !== 'ready'} 
+                    className="vostok-btn-transport"
+                  >
+                    <Square style={{ width: 11, height: 11, fill: 'currentColor' }} /> DETENER
                   </button>
                 </div>
 
@@ -1091,44 +1339,21 @@ export default function VostokRestoration({ session, updateSession, onReset }) {
                   <button
                     onClick={() => setFollowPlayhead(!followPlayhead)}
                     disabled={status !== 'ready'}
-                    style={{
-                      background: followPlayhead ? 'rgba(57, 255, 20, 0.1)' : 'rgba(255,255,255,0.02)',
-                      border: followPlayhead ? '1px solid #39FF14' : '1px solid rgba(255,255,255,0.1)',
-                      color: followPlayhead ? '#39FF14' : 'rgba(255,255,255,0.6)',
-                      padding: '6px 12px',
-                      borderRadius: '4px',
-                      fontSize: '10px',
-                      fontWeight: 900,
-                      fontFamily: 'JetBrains Mono, monospace',
-                      cursor: status === 'ready' ? 'pointer' : 'not-allowed',
-                      letterSpacing: '0.05em',
-                      transition: 'all 0.15s ease',
-                      marginRight: '4px'
-                    }}
+                    className={`vostok-btn-transport ${followPlayhead ? 'vostok-btn-transport--active-green' : ''}`}
                     title="Mantiene la vista centrada en la aguja de reproducción durante la reproducción"
                   >
-                    {followPlayhead ? '✓ SEGUIR AGUJA' : 'SEGUIR AGUJA'}
+                    <Compass style={{ width: 12, height: 12 }} />
+                    {followPlayhead ? 'SEGUIR AGUJA' : 'SEGUIR AGUJA'}
                   </button>
 
                   <button
                     onClick={spectrogramMode === 'local_hd' ? restaurarEspectrogramaCompleto : handleReRenderLocal}
                     disabled={status !== 'ready'}
-                    style={{
-                      background: spectrogramMode === 'local_hd' ? 'rgba(0, 245, 255, 0.15)' : 'rgba(255,255,255,0.02)',
-                      border: spectrogramMode === 'local_hd' ? '1px solid #00F5FF' : '1px solid rgba(255,255,255,0.1)',
-                      color: spectrogramMode === 'local_hd' ? '#00F5FF' : 'rgba(255,255,255,0.6)',
-                      padding: '6px 12px',
-                      borderRadius: '4px',
-                      fontSize: '10px',
-                      fontWeight: 900,
-                      fontFamily: 'JetBrains Mono, monospace',
-                      cursor: status === 'ready' ? 'pointer' : 'not-allowed',
-                      letterSpacing: '0.05em',
-                      transition: 'all 0.15s ease'
-                    }}
+                    className={`vostok-btn-transport ${spectrogramMode === 'local_hd' ? 'vostok-btn-transport--active-cyan' : ''}`}
                     title={spectrogramMode === 'local_hd' ? "Restaurar espectrograma completo original" : "Calcular STFT de alta resolución local (HD) para el área visible actual"}
                   >
-                    {spectrogramMode === 'local_hd' ? '✕ RESTAURAR FULL' : '✦ ENFOQUE HD'}
+                    <Sparkles style={{ width: 12, height: 12 }} />
+                    {spectrogramMode === 'local_hd' ? 'RESTAURAR FULL' : 'ENFOQUE HD'}
                   </button>
                 </div>
 
@@ -1139,45 +1364,23 @@ export default function VostokRestoration({ session, updateSession, onReset }) {
                 <div className="buttons-group">
                   <button
                     onClick={() => setToolMode('navigate')}
-                    style={{
-                      background: toolMode === 'navigate' ? 'rgba(57, 255, 20, 0.1)' : 'rgba(255,255,255,0.02)',
-                      border: toolMode === 'navigate' ? '1px solid #39FF14' : '1px solid rgba(255,255,255,0.1)',
-                      color: toolMode === 'navigate' ? '#39FF14' : 'rgba(255,255,255,0.6)',
-                      padding: '6px 12px',
-                      borderRadius: '4px',
-                      fontSize: '10px',
-                      fontWeight: 900,
-                      fontFamily: 'JetBrains Mono, monospace',
-                      cursor: 'pointer',
-                      letterSpacing: '0.05em',
-                      transition: 'all 0.15s ease'
-                    }}
+                    className={`vostok-btn-transport ${toolMode === 'navigate' ? 'vostok-btn-transport--active-green' : ''}`}
                   >
+                    <Move style={{ width: 12, height: 12 }} />
                     NAVEGAR
                   </button>
                   <button
                     onClick={() => setToolMode('select')}
-                    style={{
-                      background: toolMode === 'select' ? 'rgba(57, 255, 20, 0.1)' : 'rgba(255,255,255,0.02)',
-                      border: toolMode === 'select' ? '1px solid #39FF14' : '1px solid rgba(255,255,255,0.1)',
-                      color: toolMode === 'select' ? '#39FF14' : 'rgba(255,255,255,0.6)',
-                      padding: '6px 12px',
-                      borderRadius: '4px',
-                      fontSize: '10px',
-                      fontWeight: 900,
-                      fontFamily: 'JetBrains Mono, monospace',
-                      cursor: 'pointer',
-                      letterSpacing: '0.05em',
-                      transition: 'all 0.15s ease'
-                    }}
+                    className={`vostok-btn-transport ${toolMode === 'select' ? 'vostok-btn-transport--active-green' : ''}`}
                   >
-                    SELECCIÓN 2D
+                    <Crop style={{ width: 12, height: 12 }} />
+                    SELECCIÓN MANUAL
                   </button>
                 </div>
               </div>
 
               <div className="telemetry-row">
-                <div>TIME: <span style={{ color: '#39FF14' }}>{playheadTime.toFixed(3)}s</span> / {duration.toFixed(3)}s</div>
+                <div>TIME: <span style={{ color: 'var(--vostok-green)' }}>{playheadTime.toFixed(3)}s</span> / {duration.toFixed(3)}s</div>
                 <div style={{ color: 'rgba(255,255,255,0.3)' }}>SR: {sampleRate}Hz | {bitDepth}-bit</div>
               </div>
             </div>
@@ -1186,37 +1389,79 @@ export default function VostokRestoration({ session, updateSession, onReset }) {
 
         {/* PANEL LATERAL: INSPECTOR BENTO Y ACCIONES QUIRÚRGICAS */}
         {!isMaximized && (
-          <div style={{ width: '320px', display: 'flex', flexDirection: 'column', gap: '16px', height: '100%' }}>
+          <div style={{ width: '320px', display: 'flex', flexDirection: 'column', gap: '16px', height: '100%', overflow: 'hidden' }}>
           {/* DETECTOR DE IMPULSOS (Colapsable) */}
-          <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '6px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', position: 'relative' }}>
             <div 
               onClick={() => setIsDetectorExpanded(!isDetectorExpanded)}
-              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }}
+              onMouseEnter={() => setIsDetectorHovered(true)}
+              onMouseLeave={() => setIsDetectorHovered(false)}
+              style={{ 
+                padding: '12px 16px', 
+                borderTop: '1px solid var(--vostok-border-g)',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+                background: isDetectorHovered ? 'rgba(57, 255, 20, 0.03)' : 'transparent',
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center', 
+                cursor: 'pointer', 
+                userSelect: 'none',
+                transition: 'background-color 0.2s ease, border-color 0.2s ease'
+              }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', fontWeight: 900, letterSpacing: '0.05em', color: 'rgba(255,255,255,0.5)' }}>
-                <Zap style={{ width: 13, height: 13, color: '#39FF14' }} /> DETECTOR DE IMPULSOS
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '8px', 
+                fontSize: '11px', 
+                fontWeight: 900, 
+                letterSpacing: '0.08em', 
+                fontFamily: 'var(--font-ui)',
+                color: 'rgba(255, 255, 255, 0.85)' 
+              }}>
+                <Zap style={{ width: 13, height: 13, color: 'var(--vostok-green)' }} /> DETECTOR DE IMPULSOS
               </div>
-              <ChevronDown style={{ width: 14, height: 14, color: 'rgba(255,255,255,0.4)', transform: isDetectorExpanded ? 'none' : 'rotate(-90deg)', transition: 'transform 0.15s ease' }} />
+              <ChevronDown style={{ width: 14, height: 14, color: 'rgba(255, 255, 255, 0.6)', transform: isDetectorExpanded ? 'none' : 'rotate(-90deg)', transition: 'transform 0.15s ease' }} />
             </div>
 
             {isDetectorExpanded && (
-              <>
+              <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 {/* DOMINIOS DE ARTEFACTOS */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px',
+                  background: 'rgba(6, 9, 12, 0.4)',
+                  border: '1px solid rgba(255, 255, 255, 0.05)',
+                  boxShadow: 'inset 0 1px 1px rgba(255, 255, 255, 0.02), 0 4px 10px rgba(0, 0, 0, 0.3)',
+                  borderRadius: '8px',
+                  padding: '12px'
+                }}>
                   <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)', fontWeight: 'bold', letterSpacing: '0.05em', marginBottom: '4px' }}>DOMINIOS ACTIVOS</div>
                   
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', cursor: 'pointer', userSelect: 'none' }}>
-                      <input type="checkbox" checked={scanParams.clicks} onChange={e => setScanParams(p => ({ ...p, clicks: e.target.checked }))} style={{ accentColor: '#39FF14', cursor: 'pointer' }} />
-                      <span>Clicks & Pops</span>
+                      <input type="checkbox" className="vostok-checkbox" checked={scanParams.clicks} onChange={e => setScanParams(p => ({ ...p, clicks: e.target.checked }))} />
+                      <span style={{ transition: 'color 0.2s' }} onMouseEnter={e => e.currentTarget.style.color = 'var(--vostok-green)'} onMouseLeave={e => e.currentTarget.style.color = ''}>Clicks & Pops</span>
                     </label>
                     <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                       <button 
                         onClick={() => setShowAdvanced(prev => !prev)} 
-                        style={{ background: 'none', border: 'none', color: showAdvanced ? '#39FF14' : 'rgba(255,255,255,0.4)', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center', transition: 'color 0.15s ease' }}
+                        onMouseEnter={(e) => e.currentTarget.style.color = 'var(--vostok-green)'}
+                        onMouseLeave={(e) => e.currentTarget.style.color = showAdvanced ? 'var(--vostok-green)' : 'rgba(255,255,255,0.25)'}
+                        style={{ 
+                          background: 'none', 
+                          border: 'none', 
+                          color: showAdvanced ? 'var(--vostok-green)' : 'rgba(255,255,255,0.25)', 
+                          cursor: 'pointer', 
+                          padding: '2px', 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          transition: 'color 0.15s ease' 
+                        }}
                         title="Opciones Avanzadas"
                       >
-                        <Settings size={12} />
+                        <Settings size={12} style={{ transform: showAdvanced ? 'rotate(45deg)' : 'none', transition: 'transform 0.3s ease' }} />
                       </button>
                       {showAdvanced && (
                         <div style={{
@@ -1224,36 +1469,128 @@ export default function VostokRestoration({ session, updateSession, onReset }) {
                           right: '20px',
                           top: '-15px',
                           width: '180px',
-                          backgroundColor: 'rgba(1, 1, 1, 0.92)',
-                          backdropFilter: 'blur(10px)',
-                          border: '1px solid rgba(57, 255, 20, 0.3)',
-                          boxShadow: '0 4px 12px rgba(0,0,0,0.8), 0 0 10px rgba(57,255,20,0.1)',
-                          borderRadius: '4px',
-                          padding: '10px',
+                          backgroundColor: 'rgba(6, 9, 12, 0.96)',
+                          backdropFilter: 'var(--blur-glass)',
+                          border: (scanParams.audio_mode === 'voice' && scanParams.sensitivity > 0.75) 
+                            ? '1px solid rgba(0, 245, 255, 0.25)' 
+                            : '1px solid rgba(82, 255, 60, 0.25)',
+                          boxShadow: (scanParams.audio_mode === 'voice' && scanParams.sensitivity > 0.75)
+                            ? '0 8px 32px rgba(0, 0, 0, 0.8), 0 0 15px rgba(0, 245, 255, 0.12)'
+                            : '0 8px 32px rgba(0, 0, 0, 0.8), 0 0 15px rgba(82, 255, 60, 0.12)',
+                          borderRadius: '6px',
+                          padding: '12px',
                           zIndex: 999,
                           display: 'flex',
                           flexDirection: 'column',
                           gap: '6px',
                         }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', fontWeight: 'bold' }}>
-                            <span style={{ color: 'rgba(255,255,255,0.4)', letterSpacing: '0.05em' }}>SENSIBILIDAD</span>
-                            <span style={{ color: (scanParams.audio_mode === 'voice' && scanParams.sensitivity > 0.75) ? '#FFA500' : '#39FF14' }}>{(scanParams.sensitivity * 100).toFixed(0)}%</span>
+                          {/* Flecha indicadora (CSS arrow) apuntando al botón de ajustes */}
+                          <div style={{
+                            position: 'absolute',
+                            right: '-5px',
+                            top: '17px',
+                            width: '8px',
+                            height: '8px',
+                            backgroundColor: 'rgba(6, 9, 12, 0.96)',
+                            borderRight: (scanParams.audio_mode === 'voice' && scanParams.sensitivity > 0.75) 
+                              ? '1px solid rgba(0, 245, 255, 0.25)' 
+                              : '1px solid rgba(82, 255, 60, 0.25)',
+                            borderTop: (scanParams.audio_mode === 'voice' && scanParams.sensitivity > 0.75) 
+                              ? '1px solid rgba(0, 245, 255, 0.25)' 
+                              : '1px solid rgba(82, 255, 60, 0.25)',
+                            transform: 'rotate(45deg)',
+                            zIndex: 1000
+                          }} />
+
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', fontWeight: 'bold', zIndex: 2 }}>
+                            <span style={{ color: 'rgba(255,255,255,0.4)', letterSpacing: '0.05em', fontFamily: 'var(--font-mono)' }}>SENSIBILIDAD</span>
+                            <span style={{ color: (scanParams.audio_mode === 'voice' && scanParams.sensitivity > 0.75) ? 'var(--vostok-cyan)' : 'var(--vostok-green)', fontFamily: 'var(--font-mono)' }}>{(scanParams.sensitivity * 100).toFixed(0)}%</span>
                           </div>
-                          <input type="range" min="0.0" max="1.0" step="0.05" value={scanParams.sensitivity} onChange={e => setScanParams(p => ({ ...p, sensitivity: parseFloat(e.target.value) }))} style={{ accentColor: (scanParams.audio_mode === 'voice' && scanParams.sensitivity > 0.75) ? '#FFA500' : '#39FF14', height: '3px', cursor: 'pointer', width: '100%', transition: 'accent-color 0.2s ease' }} />
+                          <input 
+                            type="range" 
+                            min="0.0" 
+                            max="1.0" 
+                            step="0.05" 
+                            value={scanParams.sensitivity} 
+                            onChange={e => setScanParams(p => ({ ...p, sensitivity: parseFloat(e.target.value) }))} 
+                            className={(scanParams.audio_mode === 'voice' && scanParams.sensitivity > 0.75) ? 'slider-cyan' : 'slider-green'}
+                            style={{ cursor: 'pointer', zIndex: 2 }}
+                          />
                           
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', fontWeight: 'bold', marginTop: '8px' }}>
-                            <span style={{ color: 'rgba(255,255,255,0.4)', letterSpacing: '0.05em' }}>MODO DE AUDIO</span>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', fontWeight: 'bold', marginTop: '8px', zIndex: 2 }}>
+                            <span style={{ color: 'rgba(255,255,255,0.4)', letterSpacing: '0.05em', fontFamily: 'var(--font-mono)' }}>MODO DE AUDIO</span>
                           </div>
-                          <div style={{ display: 'flex', gap: '4px', marginTop: '4px' }}>
+                          <div style={{ display: 'flex', gap: '4px', marginTop: '4px', zIndex: 2 }}>
                             <button
                               onClick={() => setScanParams(p => ({ ...p, audio_mode: 'music' }))}
-                              style={{ flex: 1, padding: '4px', fontSize: '10px', background: scanParams.audio_mode === 'music' ? 'rgba(57,255,20,0.15)' : 'transparent', border: `1px solid ${scanParams.audio_mode === 'music' ? '#39FF14' : 'rgba(255,255,255,0.1)'}`, color: scanParams.audio_mode === 'music' ? '#39FF14' : 'rgba(255,255,255,0.5)', borderRadius: '2px', cursor: 'pointer', transition: 'all 0.2s ease' }}
+                              style={{ 
+                                flex: 1, 
+                                padding: '5px', 
+                                fontSize: '9px', 
+                                fontWeight: 'bold',
+                                fontFamily: 'var(--font-mono)',
+                                letterSpacing: '0.05em',
+                                background: scanParams.audio_mode === 'music' ? 'rgba(82,255,60,0.15)' : 'rgba(255,255,255,0.02)', 
+                                border: `1px solid ${scanParams.audio_mode === 'music' ? 'var(--vostok-green)' : 'rgba(255,255,255,0.08)'}`, 
+                                color: scanParams.audio_mode === 'music' ? 'var(--vostok-green)' : 'rgba(255,255,255,0.4)', 
+                                borderRadius: '4px', 
+                                cursor: 'pointer', 
+                                transition: 'all 0.15s ease' 
+                              }}
+                              onMouseEnter={(e) => {
+                                if (scanParams.audio_mode !== 'music') {
+                                  e.currentTarget.style.borderColor = 'rgba(82, 255, 60, 0.4)';
+                                  e.currentTarget.style.color = '#fff';
+                                  e.currentTarget.style.backgroundColor = 'rgba(82, 255, 60, 0.05)';
+                                }
+                              }}
+                              onMouseLeave={(e) => {
+                                if (scanParams.audio_mode !== 'music') {
+                                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
+                                  e.currentTarget.style.color = 'rgba(255,255,255,0.4)';
+                                  e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.02)';
+                                }
+                              }}
                             >
                               🎵 MÚSICA
                             </button>
                             <button
                               onClick={() => setScanParams(p => ({ ...p, audio_mode: 'voice', sensitivity: (p.audio_mode !== 'voice' && p.sensitivity > 0.75) ? 0.75 : p.sensitivity }))}
-                              style={{ flex: 1, padding: '4px', fontSize: '10px', background: scanParams.audio_mode === 'voice' ? ((scanParams.sensitivity > 0.75) ? 'rgba(255,165,0,0.15)' : 'rgba(57,255,20,0.15)') : 'transparent', border: `1px solid ${scanParams.audio_mode === 'voice' ? ((scanParams.sensitivity > 0.75) ? '#FFA500' : '#39FF14') : 'rgba(255,255,255,0.1)'}`, color: scanParams.audio_mode === 'voice' ? ((scanParams.sensitivity > 0.75) ? '#FFA500' : '#39FF14') : 'rgba(255,255,255,0.5)', borderRadius: '2px', cursor: 'pointer', transition: 'all 0.2s ease' }}
+                              style={{ 
+                                flex: 1, 
+                                padding: '5px', 
+                                fontSize: '9px', 
+                                fontWeight: 'bold',
+                                fontFamily: 'var(--font-mono)',
+                                letterSpacing: '0.05em',
+                                background: scanParams.audio_mode === 'voice' 
+                                  ? ((scanParams.sensitivity > 0.75) ? 'rgba(0,245,255,0.15)' : 'rgba(82,255,60,0.15)') 
+                                  : 'rgba(255,255,255,0.02)', 
+                                border: `1px solid ${scanParams.audio_mode === 'voice' 
+                                  ? ((scanParams.sensitivity > 0.75) ? 'var(--vostok-cyan)' : 'var(--vostok-green)') 
+                                  : 'rgba(255,255,255,0.08)'}`, 
+                                color: scanParams.audio_mode === 'voice' 
+                                  ? ((scanParams.sensitivity > 0.75) ? 'var(--vostok-cyan)' : 'var(--vostok-green)') 
+                                  : 'rgba(255,255,255,0.4)', 
+                                borderRadius: '4px', 
+                                cursor: 'pointer', 
+                                transition: 'all 0.15s ease' 
+                              }}
+                              onMouseEnter={(e) => {
+                                if (scanParams.audio_mode !== 'voice') {
+                                  const hoverColor = (scanParams.sensitivity > 0.75) ? 'var(--vostok-cyan)' : 'var(--vostok-green)';
+                                  e.currentTarget.style.borderColor = hoverColor;
+                                  e.currentTarget.style.color = '#fff';
+                                  e.currentTarget.style.backgroundColor = (scanParams.sensitivity > 0.75) ? 'rgba(0, 245, 255, 0.05)' : 'rgba(82, 255, 60, 0.05)';
+                                }
+                              }}
+                              onMouseLeave={(e) => {
+                                if (scanParams.audio_mode !== 'voice') {
+                                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
+                                  e.currentTarget.style.color = 'rgba(255,255,255,0.4)';
+                                  e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.02)';
+                                }
+                              }}
                             >
                               🎙️ VOZ
                             </button>
@@ -1264,23 +1601,23 @@ export default function VostokRestoration({ session, updateSession, onReset }) {
                   </div>
                   
                   <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', cursor: 'pointer', userSelect: 'none' }}>
-                    <input type="checkbox" checked={scanParams.dropouts} onChange={e => setScanParams(p => ({ ...p, dropouts: e.target.checked }))} style={{ accentColor: '#39FF14', cursor: 'pointer' }} />
-                    <span>Signal Dropouts</span>
+                    <input type="checkbox" className="vostok-checkbox vostok-checkbox--cyan" checked={scanParams.dropouts} onChange={e => setScanParams(p => ({ ...p, dropouts: e.target.checked }))} />
+                    <span style={{ transition: 'color 0.2s' }} onMouseEnter={e => e.currentTarget.style.color = 'var(--vostok-cyan)'} onMouseLeave={e => e.currentTarget.style.color = ''}>Signal Dropouts</span>
                   </label>
                   
                   <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', cursor: 'pointer', userSelect: 'none' }}>
-                    <input type="checkbox" checked={scanParams.hum} onChange={e => setScanParams(p => ({ ...p, hum: e.target.checked }))} style={{ accentColor: '#39FF14', cursor: 'pointer' }} />
-                    <span>Powerline Hum</span>
+                    <input type="checkbox" className="vostok-checkbox vostok-checkbox--cyan" checked={scanParams.hum} onChange={e => setScanParams(p => ({ ...p, hum: e.target.checked }))} />
+                    <span style={{ transition: 'color 0.2s' }} onMouseEnter={e => e.currentTarget.style.color = 'var(--vostok-cyan)'} onMouseLeave={e => e.currentTarget.style.color = ''}>Powerline Hum</span>
                   </label>
                   
                   <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', cursor: 'pointer', userSelect: 'none' }}>
-                    <input type="checkbox" checked={scanParams.hiss} onChange={e => setScanParams(p => ({ ...p, hiss: e.target.checked }))} style={{ accentColor: '#39FF14', cursor: 'pointer' }} />
-                    <span>Background Hiss</span>
+                    <input type="checkbox" className="vostok-checkbox vostok-checkbox--blue" checked={scanParams.hiss} onChange={e => setScanParams(p => ({ ...p, hiss: e.target.checked }))} />
+                    <span style={{ transition: 'color 0.2s' }} onMouseEnter={e => e.currentTarget.style.color = 'var(--vostok-blue)'} onMouseLeave={e => e.currentTarget.style.color = ''}>Background Hiss</span>
                   </label>
                   
                   <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', cursor: 'pointer', userSelect: 'none' }}>
-                    <input type="checkbox" checked={scanParams.distortion} onChange={e => setScanParams(p => ({ ...p, distortion: e.target.checked }))} style={{ accentColor: '#39FF14', cursor: 'pointer' }} />
-                    <span>Clipping / Distortion</span>
+                    <input type="checkbox" className="vostok-checkbox vostok-checkbox--pink" checked={scanParams.distortion} onChange={e => setScanParams(p => ({ ...p, distortion: e.target.checked }))} />
+                    <span style={{ transition: 'color 0.2s' }} onMouseEnter={e => e.currentTarget.style.color = 'var(--vostok-pink)'} onMouseLeave={e => e.currentTarget.style.color = ''}>Clipping / Distortion</span>
                   </label>
                 </div>
 
@@ -1288,96 +1625,114 @@ export default function VostokRestoration({ session, updateSession, onReset }) {
                 <button 
                   onClick={handleScanAudio} 
                   disabled={status !== 'ready'} 
-                  style={{ 
-                    width: '100%', 
-                    background: (glitches.length > 0 || status !== 'ready') ? 'rgba(255,255,255,0.02)' : '#39FF14', 
-                    border: (glitches.length > 0 || status !== 'ready') ? '1px solid rgba(255,255,255,0.2)' : 'none', 
-                    color: (glitches.length > 0 || status !== 'ready') ? 'rgba(255,255,255,0.6)' : '#010101', 
-                    borderRadius: '4px', 
-                    padding: '10px', 
-                    fontSize: '11px', 
-                    fontWeight: 900, 
-                    cursor: status === 'ready' ? 'pointer' : 'not-allowed', 
-                    fontFamily: 'JetBrains Mono, monospace', 
-                    letterSpacing: '0.05em', 
-                    transition: 'all 0.15s ease' 
-                  }}
+                  className={`vostok-btn-analyze ${
+                    status === 'analyzing'
+                      ? 'vostok-btn-analyze--analyzing'
+                      : glitches.length > 0
+                      ? 'vostok-btn-analyze--reanalyze'
+                      : 'vostok-btn-analyze--idle'
+                  }`}
                 >
+                  <Zap style={{ width: 12, height: 12, color: 'inherit', animation: status === 'analyzing' ? 'spin-slow 3s linear infinite' : 'none' }} />
                   {status === 'analyzing' ? 'ANALIZANDO SEÑAL...' : (glitches.length > 0 ? 'RE-ANALIZAR AUDIO' : 'ANALIZAR AUDIO')}
                 </button>
-              </>
+              </div>
             )}
           </div>
 
           {/* INSPECTOR QUIRÚRGICO (Colapsable y flexible) */}
-          <div style={{ flex: isInspectorExpanded ? 1 : 'none', background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '6px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div style={{ flex: isInspectorExpanded ? 1 : 'none', display: 'flex', flexDirection: 'column', position: 'relative', minHeight: 0 }}>
             <div 
               onClick={() => setIsInspectorExpanded(!isInspectorExpanded)}
-              style={{ padding: '16px', borderBottom: '1px solid rgba(255,255,255,0.04)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }}
+              onMouseEnter={() => setIsInspectorHovered(true)}
+              onMouseLeave={() => setIsInspectorHovered(false)}
+              style={{ 
+                padding: '12px 16px', 
+                borderTop: '1px solid var(--vostok-border-c)',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.08)', 
+                background: isInspectorHovered ? 'rgba(0, 255, 255, 0.03)' : 'transparent',
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center', 
+                cursor: 'pointer', 
+                userSelect: 'none',
+                transition: 'background-color 0.2s ease, border-color 0.2s ease'
+              }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', fontWeight: 900, color: 'rgba(255,255,255,0.5)' }}>
-                <Cpu style={{ width: 13, height: 13, color: '#39FF14' }} /> INSPECTOR QUIRÚRGICO
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '8px', 
+                fontSize: '11px', 
+                fontWeight: 900, 
+                letterSpacing: '0.08em', 
+                fontFamily: 'var(--font-ui)',
+                color: 'rgba(255, 255, 255, 0.85)' 
+              }}>
+                <Cpu style={{ width: 13, height: 13, color: 'var(--vostok-cyan)' }} /> INSPECTOR QUIRÚRGICO
               </div>
-              <ChevronDown style={{ width: 14, height: 14, color: 'rgba(255,255,255,0.4)', transform: isInspectorExpanded ? 'none' : 'rotate(-90deg)', transition: 'transform 0.15s ease' }} />
+              <ChevronDown style={{ width: 14, height: 14, color: 'rgba(255, 255, 255, 0.6)', transform: isInspectorExpanded ? 'none' : 'rotate(-90deg)', transition: 'transform 0.15s ease' }} />
             </div>
 
-            <div style={{ flex: 1, padding: '16px', overflowY: 'hidden', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {/* TELEMETRÍA DE RESULTADOS MOVILIZADA AQUÍ */}
-              {glitches.length > 0 && (
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2px', fontSize: '10px', background: 'rgba(255,255,255,0.02)', padding: '6px 10px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.04)' }}>
-                    <span style={{ color: 'rgba(255,255,255,0.3)' }}>DETECTADOS</span>
-                    <span style={{ color: '#fff', fontWeight: 'bold', fontSize: '12px' }}>{glitches.length}</span>
-                  </div>
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2px', fontSize: '10px', background: 'rgba(255,255,255,0.02)', padding: '6px 10px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.04)' }}>
-                    <span style={{ color: 'rgba(255,255,255,0.3)' }}>PENDIENTES</span>
-                    <span style={{ color: pendingGlitchesCount > 0 ? '#FF9100' : '#39FF14', fontWeight: 'bold', fontSize: '12px' }}>{pendingGlitchesCount}</span>
-                  </div>
-                </div>
-              )}
+            {isInspectorExpanded && (
+              <>
+                <div style={{ flex: 1, padding: '16px', overflowY: 'hidden', display: 'flex', flexDirection: 'column', gap: '16px', minHeight: 0 }}>
+                  {/* TELEMETRÍA DE RESULTADOS MOVILIZADA AQUÍ */}
+                  {glitches.length > 0 && (
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <div className="vostok-telemetry-card vostok-telemetry-card--detected" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                          <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: '9px', fontWeight: 'bold', letterSpacing: '0.05em' }}>DETECTADOS</span>
+                          <span className="vostok-led" style={{ color: 'var(--vostok-green)', backgroundColor: 'var(--vostok-green)' }} />
+                        </div>
+                        <span style={{ color: '#fff', fontWeight: '900', fontSize: '14px', lineHeight: 1 }}>{glitches.length}</span>
+                      </div>
+                      <div className={`vostok-telemetry-card ${pendingGlitchesCount > 0 ? 'vostok-telemetry-card--pending' : 'vostok-telemetry-card--stable'}`} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                          <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: '9px', fontWeight: 'bold', letterSpacing: '0.05em' }}>PENDIENTES</span>
+                          <span className="vostok-led" style={{ 
+                            color: pendingGlitchesCount > 0 ? 'var(--vostok-cyan)' : 'var(--vostok-green)', 
+                            backgroundColor: pendingGlitchesCount > 0 ? 'var(--vostok-cyan)' : 'var(--vostok-green)' 
+                          }} />
+                        </div>
+                        <span style={{ color: pendingGlitchesCount > 0 ? 'var(--vostok-cyan)' : 'var(--vostok-green)', fontWeight: '900', fontSize: '14px', lineHeight: 1 }}>{pendingGlitchesCount}</span>
+                      </div>
+                    </div>
+                  )}
 
-              {glitches.length > 0 ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', height: '100%', overflow: 'hidden' }}>
-                  <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', fontWeight: 'bold', letterSpacing: '0.05em' }}>ANOMALÍAS DETECTADAS ({glitches.length})</div>
-                  
-                  <GlitchList
-                    glitches={glitches}
-                    onSelectGlitch={selectGlitch}
-                    onDiscardGlitch={discardGlitch}
-                    hiddenGlitches={hiddenGlitches}
-                    onToggleVisibility={handleToggleVisibility}
-                    selectedGlitch={selectedGlitch}
-                  />
+                  {glitches.length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', height: '100%', overflow: 'hidden', minHeight: 0 }}>
+                      <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', fontWeight: 'bold', letterSpacing: '0.05em' }}>ANOMALÍAS DETECTADAS ({glitches.length})</div>
+                      
+                      <GlitchList
+                        glitches={glitches}
+                        onSelectGlitch={selectGlitch}
+                        onDiscardGlitch={discardGlitch}
+                        hiddenGlitches={hiddenGlitches}
+                        onToggleVisibility={handleToggleVisibility}
+                        selectedGlitch={selectedGlitch}
+                      />
+                    </div>
+                  ) : (
+                    <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', color: 'rgba(255,255,255,0.2)', fontSize: '10px', padding: '0 24px', letterSpacing: '0.05em', lineHeight: '1.5' }}>
+                      SELECCIONA UNA LÍNEA DE GLITCH EN EL ESPECTROGRAMA PARA MAPEAR SUS COORDENADAS MATEMÁTICAS
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', color: 'rgba(255,255,255,0.2)', fontSize: '10px', padding: '0 24px', letterSpacing: '0.05em', lineHeight: '1.5' }}>
-                  SELECCIONA UNA LÍNEA DE GLITCH EN EL ESPECTROGRAMA PARA MAPEAR SUS COORDENADAS MATEMÁTICAS
-                </div>
-              )}
-            </div>
 
-            {pendingGlitchesCount > 0 && (
-              <div style={{ padding: '16px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-                <button 
-                  onClick={healAll} 
-                  disabled={status !== 'ready'}
-                  style={{ 
-                    width: '100%', 
-                    background: status !== 'ready' ? 'rgba(57, 255, 20, 0.1)' : '#39FF14', 
-                    border: 'none', 
-                    color: status !== 'ready' ? '#39FF14' : '#010101', 
-                    borderRadius: '4px', 
-                    padding: '12px', 
-                    fontFamily: 'JetBrains Mono, monospace', 
-                    fontSize: '11px', 
-                    fontWeight: 900, 
-                    cursor: status === 'ready' ? 'pointer' : 'not-allowed',
-                    opacity: status === 'ready' ? 1.0 : 0.6
-                  }}
-                >
-                  {status === 'healing' ? 'REPARANDO...' : `REPARAR TODO (${pendingGlitchesCount})`}
-                </button>
-              </div>
+                {pendingGlitchesCount > 0 && (
+                  <div style={{ padding: '16px', borderTop: '1px solid rgba(255,255,255,0.05)', background: 'rgba(3, 5, 7, 0.2)' }}>
+                    <button 
+                      onClick={healAll} 
+                      disabled={status !== 'ready'}
+                      className="vostok-btn-heal-all"
+                    >
+                      <Zap style={{ width: 12, height: 12, fill: 'currentColor', animation: status === 'healing' ? 'spin-slow 1.2s linear infinite' : 'none' }} />
+                      {status === 'healing' ? 'REPARANDO...' : `REPARAR TODO (${pendingGlitchesCount})`}
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -1387,7 +1742,7 @@ export default function VostokRestoration({ session, updateSession, onReset }) {
       {/* TOASTS CONTENEDOR */}
       <div style={{ position: 'fixed', bottom: '24px', right: '24px', display: 'flex', flexDirection: 'column', gap: '10px', zIndex: 9999, pointerEvents: 'none' }}>
         {toasts.map(t => (
-          <div key={t.id} style={{ background: '#010101', border: '1px solid #39FF14', boxShadow: '0 0 10px rgba(57, 255, 20, 0.3)', borderRadius: '4px', padding: '12px 18px', color: '#fff', fontFamily: 'JetBrains Mono, monospace', fontSize: '11px', fontWeight: 'bold' }}>
+          <div key={t.id} style={{ background: 'var(--vostok-black)', border: '1px solid var(--vostok-green)', boxShadow: '0 0 15px rgba(82, 255, 60, 0.2)', borderRadius: '6px', padding: '12px 18px', color: '#fff', fontFamily: 'JetBrains Mono, monospace', fontSize: '11px', fontWeight: 'bold' }}>
             {t.msg}
           </div>
         ))}
@@ -1398,17 +1753,18 @@ export default function VostokRestoration({ session, updateSession, onReset }) {
 
 function GlitchList({ glitches, onSelectGlitch, onDiscardGlitch, hiddenGlitches, onToggleVisibility, selectedGlitch }) {
   return (
-    <div style={{ flex: 1, overflowY: 'auto', paddingRight: '4px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+    <div className="scrollable" style={{ flex: 1, paddingRight: '4px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
       {glitches.map((glitch, i) => {
         const isHidden = hiddenGlitches.has(glitch.sample_index);
         const isSelected = selectedGlitch && selectedGlitch.sample_index === glitch.sample_index && selectedGlitch.channel === glitch.channel;
         const type = glitch.event_type ? glitch.event_type.toUpperCase() : 'CLICK';
-        let color = '#39FF14';
-        if (type === 'POP') color = '#8AFF2E';
-        if (type === 'DROPOUT') color = '#FF9100';
-        if (type === 'HUM') color = '#00F5FF';
-        if (type === 'HISS') color = '#BD00FF';
-        if (type === 'DISTORTION') color = '#FF003C';
+        
+        let color = 'var(--vostok-green)';
+        if (type === 'POP') color = 'var(--vostok-green)';
+        if (type === 'DROPOUT') color = 'var(--vostok-cyan)';
+        if (type === 'HUM') color = 'var(--vostok-cyan)';
+        if (type === 'HISS') color = 'var(--vostok-blue)';
+        if (type === 'DISTORTION' || type === 'CLIPPING') color = 'var(--vostok-pink)';
 
         return (
           <div 
@@ -1421,21 +1777,24 @@ function GlitchList({ glitches, onSelectGlitch, onDiscardGlitch, hiddenGlitches,
               justifyContent: 'space-between', 
               fontSize: '10px', 
               fontFamily: 'JetBrains Mono, monospace', 
-              border: `1px solid ${isSelected ? color : 'rgba(255,255,255,0.04)'}`, 
+              border: `1px solid ${isSelected ? color : 'rgba(255, 255, 255, 0.05)'}`, 
               padding: '8px 10px', 
-              background: isSelected ? 'rgba(57, 255, 20, 0.08)' : 'rgba(255,255,255,0.02)', 
+              background: isSelected ? 'rgba(255, 255, 255, 0.04)' : 'rgba(255, 255, 255, 0.015)', 
               borderRadius: '4px', 
               cursor: 'pointer',
               opacity: isHidden ? 0.4 : 1,
-              transition: 'all 0.15s ease'
+              boxShadow: isSelected ? 'inset 0 1px 1px rgba(255, 255, 255, 0.02), 0 4px 15px rgba(0, 0, 0, 0.3)' : 'none',
+              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.borderColor = color;
-              e.currentTarget.style.background = isSelected ? 'rgba(57, 255, 20, 0.12)' : 'rgba(255,255,255,0.04)';
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)';
+              e.currentTarget.style.boxShadow = 'inset 0 1px 1px rgba(255, 255, 255, 0.02), 0 4px 12px rgba(0, 0, 0, 0.2)';
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = isSelected ? color : 'rgba(255,255,255,0.04)';
-              e.currentTarget.style.background = isSelected ? 'rgba(57, 255, 20, 0.08)' : 'rgba(255,255,255,0.02)';
+              e.currentTarget.style.borderColor = isSelected ? color : 'rgba(255, 255, 255, 0.05)';
+              e.currentTarget.style.background = isSelected ? 'rgba(255, 255, 255, 0.04)' : 'rgba(255, 255, 255, 0.015)';
+              e.currentTarget.style.boxShadow = isSelected ? 'inset 0 1px 1px rgba(255, 255, 255, 0.02), 0 4px 15px rgba(0, 0, 0, 0.3)' : 'none';
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -1451,9 +1810,39 @@ function GlitchList({ glitches, onSelectGlitch, onDiscardGlitch, hiddenGlitches,
                 {type} <span style={{ color: 'rgba(255,255,255,0.4)', fontWeight: 'normal' }}>[{glitch.channel === 0 ? 'L' : glitch.channel === 1 ? 'R' : 'L+R'}]</span>
               </span>
             </div>
-            <div style={{ display: 'flex', gap: '8px', color: 'rgba(255,255,255,0.5)' }}>
-              <span>{glitch.time_secs.toFixed(3)}s</span>
-              {glitch.repaired && <span style={{ color: '#39FF14', fontWeight: 'bold' }}>OK</span>}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ color: 'rgba(255,255,255,0.5)' }}>{glitch.time_secs.toFixed(3)}s</span>
+              {glitch.repaired ? (
+                <span style={{
+                  padding: '2px 6px',
+                  borderRadius: '3px',
+                  fontSize: '8px',
+                  fontWeight: '900',
+                  fontFamily: 'var(--font-mono)',
+                  letterSpacing: '0.08em',
+                  background: 'rgba(82, 255, 60, 0.06)',
+                  border: '1px solid rgba(82, 255, 60, 0.2)',
+                  color: 'var(--vostok-green)',
+                  boxShadow: '0 0 6px rgba(82, 255, 60, 0.06)',
+                  display: 'inline-flex',
+                  alignItems: 'center'
+                }}>REPAIRED</span>
+              ) : (
+                <span style={{
+                  padding: '2px 6px',
+                  borderRadius: '3px',
+                  fontSize: '8px',
+                  fontWeight: '900',
+                  fontFamily: 'var(--font-mono)',
+                  letterSpacing: '0.08em',
+                  background: 'rgba(0, 245, 255, 0.06)',
+                  border: '1px solid rgba(0, 245, 255, 0.2)',
+                  color: 'var(--vostok-cyan)',
+                  boxShadow: '0 0 6px rgba(0, 245, 255, 0.06)',
+                  display: 'inline-flex',
+                  alignItems: 'center'
+                }}>PENDING</span>
+              )}
             </div>
           </div>
         );

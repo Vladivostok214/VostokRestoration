@@ -177,10 +177,31 @@ export default function LandingView({ onFileLoaded }) {
     <div className="grid-bg" style={{
       width: '100%', height: '100%',
       position: 'relative',
-      backgroundColor: '#010101',
+      backgroundColor: 'var(--vostok-black)',
       fontFamily: 'var(--font-ui)',
       color: '#fff',
     }}>
+      <div className="app-noise-overlay" />
+
+      {/* ── CIRCUIT CONNECTORS (Inspirado en Imagen de Referencia 2 - Holographic/SOTA Lines) ── */}
+      <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 0 }}>
+        {/* Líneas finas conectando áreas */}
+        <path d="M 120 250 L 320 250 L 380 300 L 380 450" fill="none" stroke="rgba(82, 255, 60, 0.09)" strokeWidth="1" />
+        <path d="M 100 250 H 50" fill="none" stroke="rgba(82, 255, 60, 0.05)" strokeWidth="1" />
+        <path d="M 320 250 L 300 270" fill="none" stroke="rgba(82, 255, 60, 0.09)" strokeWidth="1" />
+        
+        <path d="M 820 180 L 1020 180 L 1070 230 L 1070 550" fill="none" stroke="rgba(82, 255, 60, 0.09)" strokeWidth="1" />
+        <path d="M 1020 180 L 1000 200" fill="none" stroke="rgba(82, 255, 60, 0.09)" strokeWidth="1" />
+        
+        <path d="M 250 620 L 450 620 L 500 570" fill="none" stroke="rgba(82, 255, 60, 0.07)" strokeWidth="1" />
+
+        {/* Nodos de intersección brillantes con sutil halo */}
+        <circle cx="320" cy="250" r="3.5" fill="var(--vostok-green)" style={{ filter: 'drop-shadow(0 0 4px var(--vostok-green))', opacity: 0.7 }} />
+        <circle cx="380" cy="300" r="2" fill="var(--vostok-green)" style={{ opacity: 0.5 }} />
+        <circle cx="1020" cy="180" r="3.5" fill="var(--vostok-green)" style={{ filter: 'drop-shadow(0 0 4px var(--vostok-green))', opacity: 0.7 }} />
+        <circle cx="1070" cy="230" r="2" fill="var(--vostok-green)" style={{ opacity: 0.5 }} />
+        <circle cx="450" cy="620" r="3" fill="var(--vostok-green)" style={{ filter: 'drop-shadow(0 0 4px var(--vostok-green))', opacity: 0.6 }} />
+      </svg>
 
       {/* ── Contenido principal: z-index 1 para quedar sobre el horizonte espectral ── */}
       <div style={{
@@ -188,80 +209,87 @@ export default function LandingView({ onFileLoaded }) {
         width: '100%', height: '100%',
         display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center',
-        padding: '32px', gap: '28px',
+        padding: '32px', gap: '32px',
       }}>
         {/* Encabezado */}
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', marginBottom: '8px' }}>
-            <div className="dot-pulse-green" style={{ width: 6, height: 6 }} />
-            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '10px', fontWeight: 900, letterSpacing: '0.5em', color: '#39FF14' }}>
-              VOSTOK RESTORATION
-            </span>
-            <div className="dot-pulse-green" style={{ width: 6, height: 6 }} />
-          </div>
-          <h1 style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '3rem', fontWeight: 900, color: '#fff', letterSpacing: '-0.02em', margin: 0 }}>
-            STANDALONE<span style={{ color: '#39FF14', marginLeft: '16px' }}>v1</span>
-          </h1>
-          <p style={{ marginTop: '8px', fontSize: '11px', fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)' }}>
-            Rust DSP Core · SIMD RealFFT · Hermite Reconstructor
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', marginBottom: '8px' }}>
+              <div className="dot-pulse-green" style={{ width: 6, height: 6 }} />
+              <span style={{ fontFamily: 'var(--font-ui)', fontSize: '10px', fontWeight: 900, letterSpacing: '0.4em', color: 'var(--vostok-green)' }}>
+                VOSTOK LABS
+              </span>
+              <div className="dot-pulse-green" style={{ width: 6, height: 6 }} />
+            </div>
+            <h1 style={{ fontFamily: 'var(--font-ui)', fontSize: '3.2rem', fontWeight: 900, color: '#fff', letterSpacing: '-0.03em', margin: 0, textShadow: '0 0 40px rgba(255,255,255,0.05)' }}>
+              RESTORATION<span style={{ color: 'var(--vostok-green)', marginLeft: '16px' }}>v1</span>
+            </h1>
+          <p style={{ marginTop: '8px', fontSize: '10px', fontWeight: 700, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)' }}>
+            CARGA · ANALIZA · REPARA
           </p>
         </div>
 
         {!loading ? (
           <>
-            <div
-              className={`glass-panel drop-zone${dragging ? ' active' : ''}`}
-              style={{
-                width: '100%', maxWidth: '600px', padding: '48px 40px',
-                display: 'flex', flexDirection: 'column', alignItems: 'center',
-                gap: '16px', cursor: 'pointer', borderRadius: '8px',
-                border: dragging ? '1px solid #39FF14' : '1px solid rgba(255,255,255,0.08)',
-                background: 'rgba(255,255,255,0.01)', transition: 'all 0.2s ease'
-              }}
-              onDrop={handleDrop} onDragOver={handleDragOver} onDragLeave={handleDragLeave}
-              onClick={handleSelectFile}
-            >
-              <FileAudio style={{ width: 52, height: 52, color: dragging ? '#39FF14' : 'rgba(255,255,255,0.3)' }} />
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '13px', fontWeight: 700, color: '#fff', marginBottom: '4px' }}>
-                  {dragging ? 'SUELTA EL AUDIO AQUÍ' : 'ARRASTRA UN ARCHIVO DE AUDIO'}
-                </div>
-                <div className="label-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
-                  Formatos: WAV (16/24/32-bit) · MP3 · FLAC
-                </div>
-              </div>
+            {/* Contenedor relativo para posicionar el corner-badge de la Imagen 2 */}
+            <div style={{ position: 'relative', width: '100%', maxWidth: '600px' }} className="fade-in">
+              
+              {/* Corner Badge overlapping the border */}
+
               <div
-                className="btn-primary"
+                className={`glass-panel drop-zone${dragging ? ' active' : ''}`}
                 style={{
-                  background: 'rgba(57,255,20,0.1)', color: '#39FF14',
-                  border: '1px solid #39FF14', borderRadius: '4px',
-                  padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px',
-                  fontSize: '11px', fontWeight: 900, fontFamily: 'JetBrains Mono, monospace'
+                  padding: '48px 40px',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center',
+                  gap: '20px', cursor: 'pointer', borderRadius: '8px',
+                  border: dragging ? '1px solid var(--vostok-green)' : '1px solid var(--vostok-border)',
+                  background: dragging ? 'rgba(82, 255, 60, 0.03)' : 'rgba(14, 20, 26, 0.45)',
+                  transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)'
                 }}
+                onDrop={handleDrop} onDragOver={handleDragOver} onDragLeave={handleDragLeave}
+                onClick={handleSelectFile}
               >
-                <Upload style={{ width: 13, height: 13 }} /> Abrir Selector Nativo
+                <FileAudio style={{ width: 56, height: 56, color: dragging ? 'var(--vostok-green)' : 'rgba(0, 245, 255, 0.20)', transition: 'color 0.2s' }} />
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 900, color: '#fff', marginBottom: '6px', letterSpacing: '0.08em' }}>
+                      {dragging ? 'SUELTA EL AUDIO AQUÍ' : 'ARRASTRA UN ARCHIVO DE AUDIO'}
+                    </div>
+                  <div className="label-xs" style={{ color: 'rgba(255,255,255,0.4)', fontSize: '8px' }}>
+                    Formatos soportados: WAV (16/24/32-bit) · MP3 · FLAC
+                  </div>
+                </div>
+                <div
+                  className="btn-primary"
+                  style={{
+                    borderRadius: 'var(--radius-md)',
+                    padding: '10px 20px',
+                    display: 'flex', alignItems: 'center', gap: '8px'
+                  }}
+                >
+                  <Upload style={{ width: 13, height: 13 }} /> Cargar Archivo
+                </div>
+                {error && (
+                  <div style={{
+                    color: 'var(--vostok-pink)', fontFamily: 'var(--font-mono)',
+                    fontSize: '11px', background: 'rgba(255,81,141,0.06)',
+                    border: '1px solid rgba(255,81,141,0.25)', borderRadius: 'var(--radius-sm)',
+                    padding: '12px 16px', width: '100%', boxSizing: 'border-box',
+                    textAlign: 'center', marginTop: '8px'
+                  }}>{error}</div>
+                )}
               </div>
-              {error && (
-                <div style={{
-                  color: '#FF6666', fontFamily: 'JetBrains Mono, monospace',
-                  fontSize: '11px', background: 'rgba(255,68,68,0.08)',
-                  border: '1px solid rgba(255,68,68,0.3)', borderRadius: '4px',
-                  padding: '12px 16px', width: '100%', boxSizing: 'border-box'
-                }}>{error}</div>
-              )}
             </div>
 
-            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center' }}>
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }} className="fade-in">
               {[
-                { icon: Activity, label: 'Symphonia I/O', sub: 'Native WAV/MP3/FLAC decoder' },
-                { icon: Zap,      label: 'RealFFT SIMD',  sub: 'SIMD-accelerated real-to-complex FFT' },
-                { icon: Cpu,      label: 'Bento Grid UI', sub: 'WebGL log-RTA paged view' },
-              ].map(({ icon: Icon, label, sub }) => (
-                <div key={label} className="glass-panel" style={{ padding: '10px 16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(255,255,255,0.02)' }}>
-                  <Icon style={{ width: 15, height: 15, color: '#00FFFF' }} />
+                { icon: Activity, label: 'Symphonia I/O', sub: 'Native decoder engine', color: 'var(--vostok-cyan)' },
+                { icon: Zap,      label: 'RealFFT SIMD',  sub: 'SIMD-accelerated FFT', color: 'var(--vostok-green)' },
+                { icon: Cpu,      label: 'MODERN UI', sub: 'WebGL log-RTA paged view', color: 'var(--vostok-amber)' },
+              ].map(({ icon: Icon, label, sub, color }) => (
+                <div key={label} className="glass-panel glass-panel--interactive" style={{ padding: '12px 20px', borderRadius: 'var(--radius-md)', border: '1px solid var(--vostok-border)', display: 'flex', alignItems: 'center', gap: '12px', background: 'rgba(14, 20, 26, 0.4)' }}>
+                  <Icon style={{ width: 16, height: 16, color: color }} />
                   <div>
-                    <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '9px', fontWeight: 900, color: '#fff', letterSpacing: '0.15em' }}>{label}</div>
-                    <div className="label-xs" style={{ marginTop: 2, color: 'rgba(255,255,255,0.4)' }}>{sub}</div>
+                    <div style={{ fontFamily: 'var(--font-ui)', fontSize: '9px', fontWeight: 900, color: '#fff', letterSpacing: '0.12em' }}>{label}</div>
+                    <div className="label-xs" style={{ marginTop: 2, color: 'rgba(255,255,255,0.4)', fontSize: '8px' }}>{sub}</div>
                   </div>
                 </div>
               ))}
@@ -269,52 +297,95 @@ export default function LandingView({ onFileLoaded }) {
           </>
         ) : (
           /* ── Opción B: Estado de carga con shimmer indeterminado + mensajes rotativos ── */
-          <div className="glass-panel" style={{
-            width: '100%', maxWidth: '600px', padding: '48px 40px',
-            borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)',
-            display: 'flex', flexDirection: 'column', gap: '28px',
-            alignItems: 'center', background: 'rgba(255,255,255,0.02)'
-          }}>
-            {/* Ícono de CPU con rotación continua para señalar actividad */}
-            <Cpu style={{ width: 40, height: 40, color: '#39FF14', animation: 'spin-slow 3s linear infinite' }} />
-
-            {/* Mensaje de fase rotativo — cambia cada 1.8s sin saltos bruscos */}
+          <div style={{ position: 'relative', width: '100%', maxWidth: '600px' }} className="fade-in">
+            
+            {/* Corner Badge matching Reference Image 2 */}
             <div style={{
-              fontFamily: 'JetBrains Mono, monospace', fontSize: '9px',
-              fontWeight: 900, color: '#39FF14', letterSpacing: '0.3em',
-              textAlign: 'center', minHeight: '1.4em',
-              transition: 'opacity 0.3s ease',
+              position: 'absolute',
+              top: '-10px',
+              left: '24px',
+              background: 'var(--vostok-cyan)',
+              color: 'var(--vostok-black)',
+              fontFamily: 'var(--font-mono)',
+              fontSize: '8.5px',
+              fontWeight: '900',
+              padding: '3px 10px',
+              borderRadius: '100px',
+              boxShadow: '0 0 15px rgba(0, 245, 255, 0.4)',
+              zIndex: 10,
+              letterSpacing: '0.08em',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px'
             }}>
-              {LOADING_PHASES[phaseIdx]}
+              <Cpu className="spinning" size={10} style={{ animationDuration: '4s' }} /> ANALYZING
             </div>
 
-            {/* Barra indeterminada animada — nunca se detiene visualmente */}
-            <div className="progress-scan" style={{ width: '100%' }} />
+            <div className="glass-panel" style={{
+              padding: '48px 40px',
+              borderRadius: 'var(--radius-lg)',
+              display: 'flex', flexDirection: 'column', gap: '28px',
+              alignItems: 'center', background: 'rgba(14, 20, 26, 0.5)'
+            }}>
+              {/* Ícono de CPU con rotación continua para señalar actividad */}
+              <Cpu style={{ width: 44, height: 44, color: 'var(--vostok-cyan)', animation: 'spin-slow 3s linear infinite', filter: 'drop-shadow(0 0 10px rgba(0, 245, 255, 0.3))' }} />
+
+              {/* Mensaje de fase rotativo — cambia cada 1.8s sin saltos bruscos */}
+              <div style={{
+                fontFamily: 'var(--font-mono)', fontSize: '9px',
+                fontWeight: 900, color: 'var(--vostok-cyan)', letterSpacing: '0.3em',
+                textAlign: 'center', minHeight: '1.4em',
+                transition: 'opacity 0.3s ease',
+              }}>
+                {LOADING_PHASES[phaseIdx]}
+              </div>
+
+              {/* Barra indeterminada animada — nunca se detiene visualmente */}
+              <div className="progress-scan" style={{ width: '100%' }} />
+            </div>
           </div>
         )}
       </div>
 
-      {/* ── Opción C: Horizonte Espectral Decorativo — generativo, zero audio data ──
-          position: absolute para no perturbar el flex layout del contenido principal.
-          pointer-events: none garantiza que no capture interacciones del usuario.    ── */}
+      {/* ── Opción C: Horizonte Espectral Decorativo — generativo con gradiente multicolor (Imagen 1 & 3) ── */}
       <div style={{
         position: 'absolute', bottom: 0, left: 0, right: 0,
-        height: '90px', display: 'flex', alignItems: 'flex-end',
+        height: '100px', display: 'flex', alignItems: 'flex-end',
         gap: '2px', padding: '0 4px',
         pointerEvents: 'none', zIndex: 0,
-        maskImage: 'linear-gradient(to top, rgba(0,0,0,0.65) 0%, transparent 100%)',
-        WebkitMaskImage: 'linear-gradient(to top, rgba(0,0,0,0.65) 0%, transparent 100%)',
+        maskImage: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)',
+        WebkitMaskImage: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)',
       }}>
-        {HORIZON_BARS.map((bar, i) => (
-          <div key={i} style={{
-            flex: 1,
-            height: `${bar.height}px`,
-            background: 'linear-gradient(to top, rgba(57,255,20,0.2), rgba(57,255,20,0.03))',
-            borderRadius: '1px 1px 0 0',
-            transformOrigin: 'bottom',
-            animation: `spec-bar-pulse ${bar.dur}s ease-in-out ${bar.delay}s infinite`,
-          }} />
-        ))}
+        {HORIZON_BARS.map((bar, i) => {
+          // Barrido multicolor progresivo (Azul -> Cian -> Verde -> Amber -> Hot Pink)
+          const pct = i / HORIZON_BARS.length;
+          let color1 = 'rgba(40, 96, 235, 0.3)';   // --vostok-blue
+          let color2 = 'rgba(40, 96, 235, 0.02)';
+          if (pct > 0.2 && pct <= 0.45) {
+            color1 = 'rgba(0, 245, 255, 0.3)';    // --vostok-cyan
+            color2 = 'rgba(0, 245, 255, 0.02)';
+          } else if (pct > 0.45 && pct <= 0.7) {
+            color1 = 'rgba(82, 255, 60, 0.3)';    // --vostok-green
+            color2 = 'rgba(82, 255, 60, 0.02)';
+          } else if (pct > 0.7 && pct <= 0.88) {
+            color1 = 'rgba(255, 159, 10, 0.3)';   // --vostok-amber
+            color2 = 'rgba(255, 159, 10, 0.02)';
+          } else if (pct > 0.88) {
+            color1 = 'rgba(255, 81, 141, 0.3)';   // --vostok-pink
+            color2 = 'rgba(255, 81, 141, 0.02)';
+          }
+
+          return (
+            <div key={i} style={{
+              flex: 1,
+              height: `${bar.height}px`,
+              background: `linear-gradient(to top, ${color1}, ${color2})`,
+              borderRadius: '2px 2px 0 0',
+              transformOrigin: 'bottom',
+              animation: `spec-bar-pulse ${bar.dur}s ease-in-out ${bar.delay}s infinite`,
+            }} />
+          );
+        })}
       </div>
     </div>
   );
